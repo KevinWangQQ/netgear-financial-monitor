@@ -30,15 +30,22 @@ export function DashboardOverview() {
       setLoading(true)
       
       // 获取Netgear公司ID
-      const { data: company, error: companyError } = await supabase
+      const { data: companies, error: companyError } = await supabase
         .from('companies')
         .select('id')
         .eq('symbol', 'NTGR')
-        .single()
 
-      if (companyError || !company) {
+      if (companyError) {
+        console.error('查询公司数据错误:', companyError)
         throw new Error('无法找到Netgear公司数据')
       }
+
+      if (!companies || companies.length === 0) {
+        console.error('未找到NTGR公司记录')
+        throw new Error('无法找到Netgear公司数据')
+      }
+
+      const company = companies[0]
 
       // 获取最近两个季度的财务数据
       const { data: financialData, error: financialError } = await supabase
