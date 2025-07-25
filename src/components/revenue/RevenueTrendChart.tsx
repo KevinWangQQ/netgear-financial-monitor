@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import ReactECharts from 'echarts-for-react'
+import dynamic from 'next/dynamic'
 import { motion } from 'framer-motion'
 import { 
   TrendingUp, 
@@ -14,6 +14,12 @@ import {
 } from 'lucide-react'
 import type { EChartsOption } from 'echarts'
 import { MetricTooltip } from '@/components/MetricTooltip'
+
+// 动态导入 ReactECharts 避免 SSR 问题
+const ReactECharts = dynamic(() => import('echarts-for-react'), {
+  ssr: false,
+  loading: () => <div className="w-full h-64 bg-gray-100 animate-pulse rounded-lg"></div>
+})
 
 interface RevenueTrendData {
   period: string
@@ -78,7 +84,10 @@ export function RevenueTrendChart({
     DATA_SERIES.forEach(seriesConfig => {
       if (!visibleSeries.has(seriesConfig.key)) return
       
-      const values = data.map(d => d[seriesConfig.key as keyof RevenueTrendData] as number)
+      const values = data.map(d => {
+        const value = d[seriesConfig.key as keyof RevenueTrendData] as number
+        return Math.round((value || 0) / 1e6) // 转换为百万，确保不是NaN
+      })
       
       if (chartType === 'combo') {
         // 组合图：营收用柱状图，利润用折线图
@@ -86,20 +95,20 @@ export function RevenueTrendChart({
           series.push({
             name: seriesConfig.name,
             type: 'bar',
-            data: values.map(v => Math.round(v / 1e6)), // 转换为百万
+            data: values,
             itemStyle: {
               color: seriesConfig.color,
               borderRadius: [4, 4, 0, 0]
             },
             tooltip: {
-              valueFormatter: (value: number) => `$${value}M`
+              valueFormatter: (value: number) => `$${value || 0}M`
             }
           })
         } else {
           series.push({
             name: seriesConfig.name,
             type: 'line',
-            data: values.map(v => Math.round(v / 1e6)),
+            data: values,
             lineStyle: {
               color: seriesConfig.color,
               width: 3
@@ -110,7 +119,7 @@ export function RevenueTrendChart({
               color: seriesConfig.color
             },
             tooltip: {
-              valueFormatter: (value: number) => `$${value}M`
+              valueFormatter: (value: number) => `$${value || 0}M`
             }
           })
         }
@@ -119,7 +128,7 @@ export function RevenueTrendChart({
         series.push({
           name: seriesConfig.name,
           type: chartType,
-          data: values.map(v => Math.round(v / 1e6)),
+          data: values,
           ...(chartType === 'bar' ? {
             itemStyle: {
               color: seriesConfig.color,
@@ -137,7 +146,7 @@ export function RevenueTrendChart({
             }
           }),
           tooltip: {
-            valueFormatter: (value: number) => `$${value}M`
+            valueFormatter: (value: number) => `$${value || 0}M`
           }
         })
       }
@@ -147,8 +156,11 @@ export function RevenueTrendChart({
     const turningPoints = data
       .map((item, index) => {
         if (index === 0) return null
-        const prevRevenue = data[index - 1].revenue
-        const currentRevenue = item.revenue
+        const prevRevenue = data[index - 1]?.revenue || 0
+        const currentRevenue = item.revenue || 0
+        
+        if (prevRevenue === 0) return null
+        
         const growth = ((currentRevenue - prevRevenue) / prevRevenue) * 100
         
         // 识别显著变化点（增长率变化超过10%）
@@ -265,6 +277,17 @@ export function RevenueTrendChart({
       animationEasing: 'cubicOut'
     }
   }, [data, visibleSeries, chartType])
+
+  // 确保数据格式正确
+  const formatValue = (value: number | undefined | null): string => {
+    if (typeof value !== 'number' || isNaN(value)) return '0.0'
+    return (value / 1e6).toFixed(1)
+  }
+
+  const formatPercentage = (value: number | undefined | null): string => {
+    if (typeof value !== 'number' || isNaN(value)) return '0.0'
+    return value.toFixed(1)
+  }
 
   return (
     <motion.div
@@ -400,12 +423,12 @@ export function RevenueTrendChart({
                 </div>
                 <div className="text-right">
                   <div className="font-semibold text-gray-900">
-                    ${(latestValue / 1e6).toFixed(1)}M
+                    ${formatValue(latestValue)}M
                   </div>
                   <div className={`flex items-center text-xs ${
                     growth >= 0 ? 'text-green-600' : 'text-red-600'
                   }`}>
-                    {growth >= 0 ? '+' : ''}{growth.toFixed(1)}%
+                    {growth >= 0 ? '+' : ''}{formatPercentage(growth)}%
                   </div>
                 </div>
               </div>

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import ReactECharts from 'echarts-for-react'
+import dynamic from 'next/dynamic'
 import { motion } from 'framer-motion'
 import { 
   Package, 
@@ -17,6 +17,12 @@ import {
 } from 'lucide-react'
 import type { EChartsOption } from 'echarts'
 import { MetricTooltip } from '@/components/MetricTooltip'
+
+// 动态导入 ReactECharts 避免 SSR 问题
+const ReactECharts = dynamic(() => import('echarts-for-react'), {
+  ssr: false,
+  loading: () => <div className="w-full h-64 bg-gray-100 animate-pulse rounded-lg"></div>
+})
 
 interface ProductData {
   name: string
@@ -126,7 +132,7 @@ export function ProductLineRevenue({
         show: false
       },
       tooltip: {
-        trigger: 'item',
+        trigger: 'item' as const,
         backgroundColor: 'rgba(255, 255, 255, 0.95)',
         borderColor: '#e5e7eb',
         borderWidth: 1,
@@ -136,7 +142,7 @@ export function ProductLineRevenue({
       },
       animation: true,
       animationDuration: 1000,
-      animationEasing: 'cubicOut'
+      animationEasing: 'cubicOut' as const
     }
 
     switch (viewMode) {
@@ -274,7 +280,6 @@ export function ProductLineRevenue({
             data: chartData,
             radius: [0, '90%'],
             center: ['50%', '55%'],
-            sort: null,
             emphasis: {
               focus: 'ancestor'
             },

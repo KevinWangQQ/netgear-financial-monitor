@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import ReactECharts from 'echarts-for-react'
+import dynamic from 'next/dynamic'
 import { motion } from 'framer-motion'
 import { 
   Target, 
@@ -14,6 +14,12 @@ import {
 } from 'lucide-react'
 import type { EChartsOption } from 'echarts'
 import { MetricTooltip } from '@/components/MetricTooltip'
+
+// 动态导入 ReactECharts 避免 SSR 问题
+const ReactECharts = dynamic(() => import('echarts-for-react'), {
+  ssr: false,
+  loading: () => <div className="w-full h-64 bg-gray-100 animate-pulse rounded-lg"></div>
+})
 
 interface ProfitabilityData {
   period: string
