@@ -10,7 +10,9 @@ import {
   Calendar,
   Filter,
   Download,
-  RefreshCw
+  RefreshCw,
+  Package,
+  MessageSquare
 } from 'lucide-react'
 import { Tab } from '@headlessui/react'
 import { toast } from 'react-hot-toast'
@@ -23,6 +25,26 @@ import { KPICard } from './KPICard'
 
 // 导入数据服务
 import { financialService, type ProcessedFinancialData } from '@/lib/financial-service'
+
+// 占位符组件
+const PlaceholderComponent = ({ title, icon }: { title: string; icon: React.ReactNode }) => (
+  <div className="flex items-center justify-center min-h-[400px] bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+    <div className="text-center">
+      <div className="mx-auto w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
+        {icon}
+      </div>
+      <h3 className="text-lg font-semibold text-gray-900 mb-2">{title}</h3>
+      <p className="text-gray-600 mb-4">该模块正在开发中，敬请期待</p>
+      <div className="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg">
+        <svg className="animate-spin -ml-1 mr-3 h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        开发中...
+      </div>
+    </div>
+  </div>
+)
 
 interface TabConfig {
   id: string
@@ -56,16 +78,16 @@ export function UnifiedDashboard() {
     },
     {
       id: 'revenue',
-      name: '营收分析',
-      icon: <TrendingUp className="w-4 h-4" />,
-      component: <RevenueAnalysis />,
+      name: '产品分析',
+      icon: <Package className="w-4 h-4" />,
+      component: <PlaceholderComponent title="产品分析" icon={<Package className="w-8 h-8 text-green-500" />} />,
       color: 'green'
     },
     {
       id: 'competition',
-      name: '竞争对比',
-      icon: <Target className="w-4 h-4" />,
-      component: <CompetitionAnalysis />,
+      name: '舆情分析',
+      icon: <MessageSquare className="w-4 h-4" />,
+      component: <PlaceholderComponent title="舆情分析" icon={<MessageSquare className="w-8 h-8 text-purple-500" />} />,
       color: 'purple'
     }
   ]

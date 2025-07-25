@@ -157,54 +157,6 @@ export function DashboardOverview() {
         </div>
       )}
       
-      {/* 当前季度核心指标 */}
-      <div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">当前季度表现</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-          <KPICard
-            title="季度营收"
-            value={kpiData.currentQuarter.revenue}
-            unit=""
-            change={kpiData.quarterOverQuarter.revenueGrowth}
-            trend={kpiData.quarterOverQuarter.revenueGrowth > 0 ? 'up' : kpiData.quarterOverQuarter.revenueGrowth < 0 ? 'down' : 'neutral'}
-            description="环比增长"
-          />
-          
-          <KPICard
-            title="毛利率"
-            value={kpiData.currentQuarter.grossProfitMargin.toFixed(1)}
-            unit="%"
-            trend={kpiData.currentQuarter.grossProfitMargin > 25 ? 'up' : 'down'}
-            description="毛利润占营收比例"
-          />
-          
-          <KPICard
-            title="净利率"
-            value={kpiData.currentQuarter.netProfitMargin.toFixed(1)}
-            unit="%"
-            change={kpiData.quarterOverQuarter.profitabilityChange}
-            trend={kpiData.currentQuarter.netProfitMargin > 8 ? 'up' : 'down'}
-            description="净利润占营收比例"
-          />
-          
-          <KPICard
-            title="资产回报率"
-            value={kpiData.currentQuarter.roa.toFixed(1)}
-            unit="%"
-            trend={kpiData.currentQuarter.roa > 5 ? 'up' : 'down'}
-            description="ROA"
-          />
-          
-          <KPICard
-            title="股东权益回报率"
-            value={kpiData.currentQuarter.roe.toFixed(1)}
-            unit="%"
-            trend={kpiData.currentQuarter.roe > 12 ? 'up' : 'down'}
-            description="ROE"
-          />
-        </div>
-      </div>
-
       {/* 年度表现总览 */}
       <div>
         <h2 className="text-lg font-semibold text-gray-900 mb-4">年度表现总览</h2>
