@@ -3,15 +3,21 @@
 import { useEffect, useState } from 'react'
 import { MultiViewChart } from './MultiViewChart'
 import { GeographicChart } from './GeographicChart'
+import { RevenueTrendChart } from './revenue/RevenueTrendChart'
+import { ProfitabilityAnalysis } from './revenue/ProfitabilityAnalysis'
+import { ProductLineRevenue } from './revenue/ProductLineRevenue'
 import { financialService, ProcessedFinancialData, YearlyFinancialData, GeographicData } from '@/lib/financial-service'
+import { EnhancedFinancialData } from '@/types/financial'
 
 export function RevenueAnalysis() {
   const [quarterlyData, setQuarterlyData] = useState<ProcessedFinancialData[]>([])
   const [yearlyData, setYearlyData] = useState<YearlyFinancialData[]>([])
   const [geographicData, setGeographicData] = useState<GeographicData[]>([])
+  const [enhancedData, setEnhancedData] = useState<EnhancedFinancialData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'quarterly' | 'yearly'>('yearly')
+  const [selectedProductYear, setSelectedProductYear] = useState(2025)
 
   useEffect(() => {
     fetchRevenueData()
@@ -31,6 +37,10 @@ export function RevenueAnalysis() {
         console.warn('无法获取真实数据，使用模拟数据:', apiError)
         rawData = financialService.generateMockData()
       }
+
+      // 获取增强财务数据
+      const enhanced = financialService.generateEnhancedMockData()
+      setEnhancedData(enhanced)
 
       if (rawData.length === 0) {
         throw new Error('无数据可用')
@@ -106,7 +116,45 @@ export function RevenueAnalysis() {
     }
   }
 
-  // 产品线营收占比数据（模拟）
+  // 准备RevenueTrendChart数据
+  const prepareRevenueTrendData = () => {
+    return enhancedData.slice(0, 8).reverse().map(item => ({
+      period: item.period,
+      revenue: item.revenue,
+      grossProfit: item.grossProfit,
+      netIncome: item.netIncome,
+      revenueGrowth: 0, // 暂时设为0，可以后续计算
+      events: item.milestoneEvents.map(event => ({
+        title: event.title,
+        description: event.description,
+        impact: event.impact
+      }))
+    }))
+  }
+
+  // 准备ProfitabilityAnalysis数据
+  const prepareProfitabilityTrendData = () => {
+    return enhancedData.slice(0, 8).reverse().map(item => ({
+      period: item.period,
+      grossProfitMargin: item.grossProfitMargin,
+      netProfitMargin: item.netProfitMargin,
+      operatingMargin: item.grossProfitMargin - 5, // 模拟经营利润率
+      roa: item.roa,
+      events: item.milestoneEvents.map(event => ({
+        title: event.title,
+        description: event.description,
+        impact: event.impact
+      }))
+    }))
+  }
+
+  // 准备产品线数据
+  const prepareProductLineData = () => {
+    const productData = financialService.generateProductLineData(selectedProductYear)
+    return productData.level1
+  }
+
+  // 产品线营收占比数据（模拟，保留作为备用）
   const productRevenueData = [
     { name: '消费级路由器', value: 680 },
     { name: '企业级设备', value: 420 },
@@ -164,22 +212,20 @@ export function RevenueAnalysis() {
         </div>
       </div>
 
-      {/* 营收趋势分析 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <MultiViewChart
-          data={viewMode === 'yearly' ? prepareYearlyChartData() : prepareQuarterlyChartData()}
-          views={['line', 'bar', 'area', 'table']}
-          defaultView="line"
-          title={`${viewMode === 'yearly' ? '年度' : '季度'}营收趋势`}
-          height={350}
+      {/* 营收趋势分析 - 使用增强组件 */}
+      <div className="space-y-6">
+        <RevenueTrendChart
+          data={prepareRevenueTrendData()}
+          title="营收趋势分析"
+          height={400}
+          showControls={true}
         />
         
-        <MultiViewChart
-          data={prepareProfitabilityData()}
-          views={['line', 'bar', 'table']}
-          defaultView="line"
+        <ProfitabilityAnalysis
+          data={prepareProfitabilityTrendData()}
           title="盈利能力分析"
-          height={350}
+          height={400}
+          showControls={true}
         />
       </div>
 
@@ -244,13 +290,15 @@ export function RevenueAnalysis() {
       </div>
 
       {/* 产品线和地区分析 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <MultiViewChart
-          data={productRevenueData}
-          views={['pie', 'bar', 'table']}
-          defaultView="pie"
-          title="产品线营收占比"
-          height={300}
+      <div className="space-y-6">
+        <ProductLineRevenue
+          data={prepareProductLineData()}
+          title="产品线营收分析"
+          height={450}
+          years={[2023, 2024, 2025]}
+          selectedYear={selectedProductYear}
+          onYearChange={setSelectedProductYear}
+          showControls={true}
         />
         
         <GeographicChart

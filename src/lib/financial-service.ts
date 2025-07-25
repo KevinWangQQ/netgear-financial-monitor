@@ -5,6 +5,19 @@
 
 import { supabase } from './supabase'
 import { Database } from './supabase'
+import { sortByQuarter, parseQuarter, formatQuarterDisplay } from './date-utils'
+import { 
+  EnhancedFinancialData, 
+  SoftwareMetrics, 
+  OperationalMetrics, 
+  FinancialEvent,
+  ProductLineRevenue,
+  ProductHierarchy,
+  EnhancedGeographicData,
+  DataTurningPoint,
+  CashFlowAnalysis,
+  BalanceSheetAnalysis
+} from '@/types/financial'
 
 type FinancialData = Database['public']['Tables']['financial_data']['Row']
 type Company = Database['public']['Tables']['companies']['Row']
@@ -98,7 +111,7 @@ class FinancialService {
    * 处理财务数据，添加计算指标
    */
   processFinancialData(rawData: FinancialData[]): ProcessedFinancialData[] {
-    return rawData.map(item => {
+    const processed = rawData.map(item => {
       const revenue = item.revenue || 0
       const grossProfit = item.gross_profit || 0
       const netIncome = item.net_income || 0
@@ -132,6 +145,9 @@ class FinancialService {
         cashRatio: totalDebt > 0 ? (cashAndEquivalents / totalDebt) * 100 : 0
       }
     })
+
+    // 按时间顺序排序（最新的在前）
+    return sortByQuarter(processed, false)
   }
 
   /**
@@ -203,7 +219,7 @@ class FinancialService {
       quarterMap.get(item.quarter)!.push(item)
     })
 
-    // 按年份排序每个季度的数据
+    // 按时间排序每个季度的数据（最新的在前）
     quarterMap.forEach((quarters, quarter) => {
       quarters.sort((a, b) => b.year - a.year)
     })
@@ -293,6 +309,254 @@ class FinancialService {
   }
 
   /**
+   * 生成软件业务指标
+   */
+  private generateSoftwareMetrics(revenue: number, quarter: number, year: number): SoftwareMetrics {
+    // 假设软件收入占总收入的30-50%
+    const softwareRevenue = revenue * (0.3 + Math.random() * 0.2)
+    const mrr = softwareRevenue / 12
+    
+    return {
+      arr: softwareRevenue,
+      mrr,
+      cac: 500 + Math.random() * 1000,
+      ltv: 3000 + Math.random() * 2000,
+      churnRate: 0.02 + Math.random() * 0.03, // 2-5%
+      nrr: 1.05 + Math.random() * 0.15, // 105-120%
+      totalSubscribers: Math.floor(revenue / 1000000 * 100), // 基于营收规模估算
+      newSubscribers: Math.floor(Math.random() * 100),
+      upgrades: Math.floor(Math.random() * 50),
+      downgrades: Math.floor(Math.random() * 20),
+      ltvCacRatio: 0, // 将在后面计算
+      cacPaybackPeriod: 0, // 将在后面计算
+      healthScore: 0 // 将在后面计算
+    }
+  }
+
+  /**
+   * 生成运营效率指标
+   */
+  private generateOperationalMetrics(revenue: number): OperationalMetrics {
+    return {
+      assetTurnover: 1.2 + Math.random() * 0.8,
+      receivablesTurnover: 6 + Math.random() * 4,
+      inventoryTurnover: 8 + Math.random() * 4,
+      salesExpenseRatio: 0.15 + Math.random() * 0.05,
+      adminExpenseRatio: 0.08 + Math.random() * 0.03,
+      rdExpenseRatio: 0.12 + Math.random() * 0.05,
+      operatingCashFlow: revenue * (0.12 + Math.random() * 0.08),
+      investingCashFlow: revenue * (-0.05 - Math.random() * 0.03),
+      financingCashFlow: revenue * (-0.02 + Math.random() * 0.04),
+      freeCashFlow: revenue * (0.08 + Math.random() * 0.06)
+    }
+  }
+
+  /**
+   * 生成里程碑事件
+   */
+  private generateMilestoneEvents(period: string, year: number, quarter: number): FinancialEvent[] {
+    const events: FinancialEvent[] = []
+    
+    // 基于时间生成一些典型事件
+    if (quarter === 1) {
+      events.push({
+        id: `${period}-q1-guidance`,
+        date: `${year}-01-15`,
+        type: 'financial',
+        title: '发布全年业绩指引',
+        description: `${year}年全年营收指引上调至${Math.floor(Math.random() * 100) + 900}M-${Math.floor(Math.random() * 100) + 1000}M美元`,
+        impact: 'positive',
+        impactLevel: 3,
+        relatedMetrics: ['revenue', 'guidance']
+      })
+    }
+    
+    if (quarter === 2 && Math.random() > 0.7) {
+      events.push({
+        id: `${period}-product-launch`,
+        date: `${year}-04-${Math.floor(Math.random() * 28) + 1}`,
+        type: 'product',
+        title: '新一代Wi-Fi 7路由器发布',
+        description: '推出支持最新Wi-Fi 7标准的高端路由器产品线，预期带动下半年营收增长',
+        impact: 'positive',
+        impactLevel: 4,
+        relatedMetrics: ['revenue', 'productRevenue']
+      })
+    }
+    
+    if (quarter === 3 && Math.random() > 0.8) {
+      events.push({
+        id: `${period}-partnership`,
+        date: `${year}-07-${Math.floor(Math.random() * 31) + 1}`,
+        type: 'market',
+        title: '与云服务商战略合作',
+        description: '与主要云服务提供商签署战略合作协议，拓展企业级网络设备市场',
+        impact: 'positive',
+        impactLevel: 3,
+        relatedMetrics: ['revenue', 'marketShare']
+      })
+    }
+    
+    return events
+  }
+
+  /**
+   * 生成增强的模拟数据
+   */
+  generateEnhancedMockData(): EnhancedFinancialData[] {
+    const data: EnhancedFinancialData[] = []
+    
+    // 扩展到5年数据 (2021-2025)
+    for (let year = 2021; year <= 2025; year++) {
+      for (let quarter = 1; quarter <= 4; quarter++) {
+        if (year === 2025 && quarter > 1) break // 只到2025年Q1
+        
+        const period = `Q${quarter}-${year}`
+        const baseRevenue = 300000000 + (year - 2021) * 20000000 // 基础增长
+        const seasonalFactor = quarter === 4 ? 1.2 : quarter === 1 ? 0.9 : 1.0 // 季节性因素
+        const randomFactor = 0.9 + Math.random() * 0.2 // 随机波动
+        
+        const revenue = baseRevenue * seasonalFactor * randomFactor
+        const grossProfit = revenue * (0.25 + Math.random() * 0.1)
+        const netIncome = revenue * (0.08 + Math.random() * 0.05)
+        const totalAssets = revenue * 3
+        
+        // 生成软件业务指标
+        const softwareMetrics = this.generateSoftwareMetrics(revenue, quarter, year)
+        softwareMetrics.ltvCacRatio = softwareMetrics.ltv / softwareMetrics.cac
+        softwareMetrics.cacPaybackPeriod = softwareMetrics.cac / softwareMetrics.mrr
+        softwareMetrics.healthScore = ((revenue - data[data.length - 1]?.revenue || revenue) / (data[data.length - 1]?.revenue || revenue) * 100) + (netIncome / revenue * 100)
+        
+        // 生成运营指标
+        const operationalMetrics = this.generateOperationalMetrics(revenue)
+        
+        // 生成里程碑事件
+        const milestoneEvents = this.generateMilestoneEvents(period, year, quarter)
+        
+        data.push({
+          period,
+          year,
+          quarter,
+          revenue,
+          grossProfit,
+          netIncome,
+          totalAssets,
+          operatingExpenses: revenue * 0.15,
+          cashAndEquivalents: totalAssets * 0.1,
+          totalDebt: totalAssets * 0.2,
+          grossProfitMargin: (grossProfit / revenue) * 100,
+          netProfitMargin: (netIncome / revenue) * 100,
+          roa: (netIncome / totalAssets) * 100,
+          roe: (netIncome / (totalAssets * 0.6)) * 100,
+          debtToAssets: 20,
+          cashRatio: 50,
+          
+          // 新增数据
+          softwareMetrics,
+          operationalMetrics,
+          milestoneEvents,
+          
+          dataQuality: {
+            completeness: 0.95,
+            accuracy: 0.9,
+            source: 'mock'
+          }
+        })
+      }
+    }
+    
+    return sortByQuarter(data, false) // 最新的在前
+  }
+
+  /**
+   * 生成产品线营收数据
+   */
+  generateProductLineData(year: number): ProductHierarchy {
+    const totalRevenue = 300000000 + (year - 2021) * 20000000
+    
+    return {
+      level1: [
+        {
+          name: '消费级产品',
+          revenue: totalRevenue * 0.65,
+          children: [
+            { name: 'WiFi路由器', revenue: totalRevenue * 0.35, profitMargin: 28, growth: 5.2 },
+            { name: '网络扩展器', revenue: totalRevenue * 0.15, profitMargin: 22, growth: -2.1 },
+            { name: '智能家居网关', revenue: totalRevenue * 0.15, profitMargin: 35, growth: 15.8 }
+          ]
+        },
+        {
+          name: '企业级产品',
+          revenue: totalRevenue * 0.25,
+          children: [
+            { name: '企业路由器', revenue: totalRevenue * 0.12, profitMargin: 32, growth: 8.5 },
+            { name: '交换机', revenue: totalRevenue * 0.08, profitMargin: 25, growth: 3.2 },
+            { name: '安全设备', revenue: totalRevenue * 0.05, profitMargin: 40, growth: 12.3 }
+          ]
+        },
+        {
+          name: '软件服务',
+          revenue: totalRevenue * 0.1,
+          children: [
+            { name: '网络管理软件', revenue: totalRevenue * 0.04, profitMargin: 75, growth: 25.5 },
+            { name: '安全服务', revenue: totalRevenue * 0.03, profitMargin: 80, growth: 35.2 },
+            { name: '云服务', revenue: totalRevenue * 0.03, profitMargin: 70, growth: 45.8 }
+          ]
+        }
+      ]
+    }
+  }
+
+  /**
+   * 生成增强的地理分布数据
+   */
+  generateEnhancedGeographicData(revenue: number, year: number): EnhancedGeographicData[] {
+    const baseDistribution = [
+      { 
+        region: '北美', country: 'United States', countryCode: 'US', 
+        percentage: 0.55, coordinates: [-95.7129, 37.0902] as [number, number],
+        marketDetails: {
+          population: 331000000, gdpPerCapita: 63416, internetPenetration: 89.4,
+          competitorCount: 15, marketSize: 12500000000, marketShare: 8.5
+        }
+      },
+      { 
+        region: '欧洲', country: 'Germany', countryCode: 'DE',
+        percentage: 0.28, coordinates: [10.4515, 51.1657] as [number, number],
+        marketDetails: {
+          population: 83000000, gdpPerCapita: 46258, internetPenetration: 91.5,
+          competitorCount: 22, marketSize: 8200000000, marketShare: 6.2
+        }
+      },
+      { 
+        region: '亚太', country: 'Japan', countryCode: 'JP',
+        percentage: 0.17, coordinates: [138.2529, 36.2048] as [number, number],
+        marketDetails: {
+          population: 125800000, gdpPerCapita: 39312, internetPenetration: 93.2,
+          competitorCount: 18, marketSize: 5800000000, marketShare: 4.8
+        }
+      }
+    ]
+    
+    return baseDistribution.map(item => ({
+      region: item.region,
+      country: item.country,
+      countryCode: item.countryCode,
+      revenue: Math.round(revenue * item.percentage),
+      percentage: item.percentage * 100,
+      growth: -5 + Math.random() * 25, // -5% 到 20% 的增长率
+      coordinates: item.coordinates,
+      year,
+      marketDetails: item.marketDetails,
+      productMix: {
+        consumer: 60 + Math.random() * 20,
+        enterprise: 25 + Math.random() * 15,
+        software: 5 + Math.random() * 10
+      }
+    }))
+  }
+
+  /**
    * 生成模拟数据（开发阶段使用）
    */
   generateMockData(): ProcessedFinancialData[] {
@@ -330,7 +594,8 @@ class FinancialService {
       }
     }
     
-    return mockData.reverse() // 最新的在前
+    // 使用正确的季度排序
+    return sortByQuarter(mockData, false) // 最新的在前
   }
 }
 

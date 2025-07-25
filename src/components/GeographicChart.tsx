@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { GeographicData } from '@/lib/financial-service'
+import { InteractiveMap } from './InteractiveMap'
 
 interface GeographicChartProps {
   data: GeographicData[]
@@ -13,7 +14,7 @@ interface GeographicChartProps {
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6']
 
 export function GeographicChart({ data, title, height = 400 }: GeographicChartProps) {
-  const [view, setView] = useState<'bar' | 'pie'>('bar')
+  const [view, setView] = useState<'bar' | 'map'>('map')
 
   const renderBarView = () => (
     <ResponsiveContainer width="100%" height={height}>
@@ -36,29 +37,27 @@ export function GeographicChart({ data, title, height = 400 }: GeographicChartPr
     </ResponsiveContainer>
   )
 
-  const renderPieView = () => (
-    <ResponsiveContainer width="100%" height={height}>
-      <PieChart>
-        <Pie
-          data={data}
-          cx="50%"
-          cy="50%"
-          labelLine={false}
-          label={({ region, percentage }) => `${region} ${percentage.toFixed(1)}%`}
-          outerRadius={Math.min(height * 0.35, 120)}
-          fill="#8884d8"
-          dataKey="revenue"
-        >
-          {data.map((_, index) => (
-            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-          ))}
-        </Pie>
-        <Tooltip 
-          formatter={(value: number) => [`$${(value / 1e6).toFixed(0)}M`, '营收']}
-        />
-      </PieChart>
-    </ResponsiveContainer>
-  )
+  const renderMapView = () => {
+    // 转换数据格式以适配InteractiveMap组件
+    const mapData = data.map(item => ({
+      region: item.region,
+      country: item.country || item.region,
+      revenue: item.revenue,
+      percentage: item.percentage,
+      growth: item.growth,
+      coordinates: item.coordinates || [0, 0] as [number, number]
+    }))
+
+    return (
+      <InteractiveMap 
+        data={mapData}
+        title=""
+        height={height}
+        showLegend={true}
+        showControls={true}
+      />
+    )
+  }
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
@@ -78,21 +77,21 @@ export function GeographicChart({ data, title, height = 400 }: GeographicChartPr
             柱状图
           </button>
           <button
-            onClick={() => setView('pie')}
+            onClick={() => setView('map')}
             className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              view === 'pie'
+              view === 'map'
                 ? 'bg-white text-blue-600 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
             }`}
           >
-            饼图
+            地图
           </button>
         </div>
       </div>
 
       {/* 图表内容 */}
       <div className="w-full">
-        {view === 'bar' ? renderBarView() : renderPieView()}
+        {view === 'bar' ? renderBarView() : renderMapView()}
       </div>
 
       {/* 图例说明 */}
