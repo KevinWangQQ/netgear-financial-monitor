@@ -31,15 +31,11 @@ export function DashboardOverview() {
       // 清除之前的错误状态
       setError(null)
       
-      console.log('开始获取KPI数据...')
-      
       // 获取Netgear公司ID
       const { data: companies, error: companyError } = await supabase
         .from('companies')
         .select('id')
         .eq('symbol', 'NTGR')
-
-      console.log('公司查询结果:', { companies, companyError })
 
       if (companyError) {
         console.error('查询公司数据错误:', companyError)
@@ -52,7 +48,6 @@ export function DashboardOverview() {
       }
 
       const company = companies[0]
-      console.log('找到公司:', company)
 
       // 获取最近两个季度的财务数据
       const { data: financialData, error: financialError } = await supabase
@@ -61,8 +56,6 @@ export function DashboardOverview() {
         .eq('company_id', company.id)
         .order('period', { ascending: false })
         .limit(2)
-
-      console.log('财务数据查询结果:', { financialData, financialError })
 
       if (financialError) {
         console.error('获取财务数据失败:', financialError)
@@ -102,21 +95,16 @@ export function DashboardOverview() {
       // 模拟EPS计算（实际需要股数数据）
       const eps = netIncome / 65000000 // 假设6500万股
 
-      const calculatedKpiData = {
+      setKpiData({
         revenue,
         revenueGrowth,
         grossProfitMargin,
         netProfitMargin,
         eps
-      }
-      
-      console.log('计算的KPI数据:', calculatedKpiData)
-      
-      setKpiData(calculatedKpiData)
+      })
       
       // 成功获取数据，清除错误状态
       setError(null)
-      console.log('KPI数据获取成功，已清除错误状态')
 
     } catch (err) {
       console.error('获取KPI数据失败:', err)
