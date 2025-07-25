@@ -61,22 +61,6 @@ export function ProductLineRevenue({
   const [showDetails, setShowDetails] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
-  // 颜色生成函数 - 移到前面避免初始化顺序问题
-  const getCategoryColor = (category: string) => {
-    const colors = {
-      '消费级产品': '#3b82f6',
-      '企业级产品': '#10b981', 
-      '软件服务': '#f59e0b'
-    }
-    return colors[category as keyof typeof colors] || '#6b7280'
-  }
-
-  const getProductColor = (product: string) => {
-    const hash = product.split('').reduce((acc, char) => char.charCodeAt(0) + acc, 0)
-    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#84cc16']
-    return colors[hash % colors.length]
-  }
-
   // 计算总收入
   const totalRevenue = useMemo(() => {
     return data.reduce((sum, item) => sum + item.revenue, 0)
@@ -370,6 +354,22 @@ export function ProductLineRevenue({
         return baseConfig
     }
   }, [viewMode, chartData, totalRevenue])
+
+  // 颜色生成函数
+  const getCategoryColor = (category: string) => {
+    const colors = {
+      '消费级产品': '#3b82f6',
+      '企业级产品': '#10b981', 
+      '软件服务': '#f59e0b'
+    }
+    return colors[category as keyof typeof colors] || '#6b7280'
+  }
+
+  const getProductColor = (product: string) => {
+    const hash = product.split('').reduce((acc, char) => char.charCodeAt(0) + acc, 0)
+    const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ef4444', '#06b6d4', '#84cc16']
+    return colors[hash % colors.length]
+  }
 
   return (
     <motion.div

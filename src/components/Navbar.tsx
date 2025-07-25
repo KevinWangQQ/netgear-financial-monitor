@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BarChart3, TrendingUp, Users } from 'lucide-react'
+import { BarChart3, TrendingUp, Users, Package, MessageSquare } from 'lucide-react'
 
 export function Navbar() {
   const pathname = usePathname()
@@ -25,6 +25,20 @@ export function Navbar() {
       href: '/competition',
       icon: Users,
       active: pathname === '/competition'
+    },
+    {
+      name: '产品分析',
+      href: '/product',
+      icon: Package,
+      active: pathname === '/product',
+      disabled: true // 暂时禁用
+    },
+    {
+      name: '舆情分析',
+      href: '/sentiment',
+      icon: MessageSquare,
+      active: pathname === '/sentiment',
+      disabled: true // 暂时禁用
     }
   ]
 
@@ -42,6 +56,21 @@ export function Navbar() {
           <div className="flex space-x-1">
             {navItems.map((item) => {
               const Icon = item.icon
+              
+              if (item.disabled) {
+                return (
+                  <div
+                    key={item.href}
+                    className="flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium text-gray-400 cursor-not-allowed"
+                    title="功能开发中，敬请期待"
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{item.name}</span>
+                    <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">开发中</span>
+                  </div>
+                )
+              }
+              
               return (
                 <Link
                   key={item.href}

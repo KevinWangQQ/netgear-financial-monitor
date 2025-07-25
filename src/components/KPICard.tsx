@@ -26,7 +26,6 @@ export function KPICard({
   period,
   metricId
 }: KPICardProps) {
-  // 格式化数值显示
   const formatValue = (val: string | number) => {
     if (typeof val === 'number') {
       if (val >= 1e9) {
@@ -36,8 +35,7 @@ export function KPICard({
       } else if (val >= 1e3) {
         return `${(val / 1e3).toFixed(1)}K`
       }
-      // 使用自定义格式化避免本地化差异
-      return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+      return val.toLocaleString()
     }
     return val
   }
