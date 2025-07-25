@@ -2,18 +2,26 @@
 
 import { useEffect, useState } from 'react'
 import { KPICard } from './KPICard'
-import { supabase } from '@/lib/supabase'
-import { Database } from '@/lib/supabase'
-
-type FinancialData = Database['public']['Tables']['financial_data']['Row']
-type Companies = Database['public']['Tables']['companies']['Row']
+import { financialService, ProcessedFinancialData, YearlyFinancialData } from '@/lib/financial-service'
 
 interface KPIData {
-  revenue: number
-  revenueGrowth: number
-  grossProfitMargin: number
-  netProfitMargin: number
-  eps: number
+  currentQuarter: {
+    revenue: number
+    grossProfitMargin: number
+    netProfitMargin: number
+    roa: number
+    roe: number
+  }
+  currentYear: {
+    totalRevenue: number
+    yearOverYearGrowth: number
+    avgGrossProfitMargin: number
+    avgNetProfitMargin: number
+  }
+  quarterOverQuarter: {
+    revenueGrowth: number
+    profitabilityChange: number
+  }
 }
 
 export function DashboardOverview() {
@@ -28,94 +36,91 @@ export function DashboardOverview() {
   const fetchKPIData = async () => {
     try {
       setLoading(true)
-      // 清除之前的错误状态
       setError(null)
       
-      // 获取Netgear公司ID
-      const { data: companies, error: companyError } = await supabase
-        .from('companies')
-        .select('id')
-        .eq('symbol', 'NTGR')
-
-      if (companyError) {
-        console.error('查询公司数据错误:', companyError)
-        throw new Error('无法找到Netgear公司数据')
+      // 获取财务数据
+      let rawData: ProcessedFinancialData[]
+      try {
+        const data = await financialService.getRawFinancialData('NTGR', 12)
+        rawData = financialService.processFinancialData(data)
+      } catch (apiError) {
+        console.warn('无法获取真实数据，使用模拟数据:', apiError)
+        rawData = financialService.generateMockData()
       }
 
-      if (!companies || companies.length === 0) {
-        console.error('未找到NTGR公司记录')
-        throw new Error('无法找到Netgear公司数据')
+      if (rawData.length === 0) {
+        throw new Error('无数据可用')
       }
 
-      const company = companies[0]
+      // 按年度分组
+      const yearlyData = financialService.groupByYear(rawData)
+      const currentYear = yearlyData[0] // 最新年份
+      const previousYear = yearlyData[1] // 上一年
 
-      // 获取最近两个季度的财务数据
-      const { data: financialData, error: financialError } = await supabase
-        .from('financial_data')
-        .select('*')
-        .eq('company_id', company.id)
-        .order('period', { ascending: false })
-        .limit(2)
+      // 获取最新季度数据
+      const latestQuarter = rawData[0]
+      const previousQuarter = rawData[1]
 
-      if (financialError) {
-        console.error('获取财务数据失败:', financialError)
-        throw new Error('获取财务数据失败')
-      }
-
-      if (!financialData || financialData.length === 0) {
-        // 如果没有数据，显示模拟数据
-        setKpiData({
-          revenue: 1200000000, // $1.2B
-          revenueGrowth: 5.2,
-          grossProfitMargin: 28.5,
-          netProfitMargin: 8.3,
-          eps: 1.25
-        })
-        setError(null) // 使用模拟数据不算错误
-        return
-      }
-
-      const current = financialData[0]
-      const previous = financialData[1]
-
-      // 计算KPI指标
-      const revenue = current.revenue || 0
-      const grossProfit = current.gross_profit || 0
-      const netIncome = current.net_income || 0
-      
-      // 计算增长率
-      const revenueGrowth = previous && previous.revenue 
-        ? ((revenue - previous.revenue) / previous.revenue) * 100 
+      // 计算季度环比增长
+      const quarterlyRevenueGrowth = previousQuarter && previousQuarter.revenue > 0
+        ? ((latestQuarter.revenue - previousQuarter.revenue) / previousQuarter.revenue) * 100
         : 0
 
-      // 计算利润率
-      const grossProfitMargin = revenue > 0 ? (grossProfit / revenue) * 100 : 0
-      const netProfitMargin = revenue > 0 ? (netIncome / revenue) * 100 : 0
+      const profitabilityChange = previousQuarter
+        ? latestQuarter.netProfitMargin - previousQuarter.netProfitMargin
+        : 0
 
-      // 模拟EPS计算（实际需要股数数据）
-      const eps = netIncome / 65000000 // 假设6500万股
+      const kpiResult: KPIData = {
+        currentQuarter: {
+          revenue: latestQuarter.revenue,
+          grossProfitMargin: latestQuarter.grossProfitMargin,
+          netProfitMargin: latestQuarter.netProfitMargin,
+          roa: latestQuarter.roa,
+          roe: latestQuarter.roe
+        },
+        currentYear: {
+          totalRevenue: currentYear.totalRevenue,
+          yearOverYearGrowth: currentYear.yearOverYearGrowth,
+          avgGrossProfitMargin: currentYear.avgGrossProfitMargin,
+          avgNetProfitMargin: currentYear.avgNetProfitMargin
+        },
+        quarterOverQuarter: {
+          revenueGrowth: quarterlyRevenueGrowth,
+          profitabilityChange: profitabilityChange
+        }
+      }
 
-      setKpiData({
-        revenue,
-        revenueGrowth,
-        grossProfitMargin,
-        netProfitMargin,
-        eps
-      })
-      
-      // 成功获取数据，清除错误状态
+      setKpiData(kpiResult)
       setError(null)
 
     } catch (err) {
       console.error('获取KPI数据失败:', err)
       setError(err instanceof Error ? err.message : '获取数据失败')
-      // 显示模拟数据作为fallback
+      
+      // 使用模拟数据作为fallback
+      const mockData = financialService.generateMockData()
+      const yearlyData = financialService.groupByYear(mockData)
+      const currentYear = yearlyData[0]
+      const latestQuarter = mockData[0]
+      
       setKpiData({
-        revenue: 1200000000,
-        revenueGrowth: 5.2,
-        grossProfitMargin: 28.5,
-        netProfitMargin: 8.3,
-        eps: 1.25
+        currentQuarter: {
+          revenue: latestQuarter.revenue,
+          grossProfitMargin: latestQuarter.grossProfitMargin,
+          netProfitMargin: latestQuarter.netProfitMargin,
+          roa: latestQuarter.roa,
+          roe: latestQuarter.roe
+        },
+        currentYear: {
+          totalRevenue: currentYear.totalRevenue,
+          yearOverYearGrowth: currentYear.yearOverYearGrowth,
+          avgGrossProfitMargin: currentYear.avgGrossProfitMargin,
+          avgNetProfitMargin: currentYear.avgNetProfitMargin
+        },
+        quarterOverQuarter: {
+          revenueGrowth: 3.2,
+          profitabilityChange: 0.8
+        }
       })
     } finally {
       setLoading(false)
@@ -152,47 +157,91 @@ export function DashboardOverview() {
         </div>
       )}
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-        <KPICard
-          title="季度营收"
-          value={kpiData.revenue}
-          unit=""
-          change={kpiData.revenueGrowth}
-          trend={kpiData.revenueGrowth > 0 ? 'up' : kpiData.revenueGrowth < 0 ? 'down' : 'neutral'}
-          description="同比增长"
-        />
-        
-        <KPICard
-          title="毛利率"
-          value={kpiData.grossProfitMargin.toFixed(1)}
-          unit="%"
-          trend={kpiData.grossProfitMargin > 25 ? 'up' : 'down'}
-          description="毛利润占营收比例"
-        />
-        
-        <KPICard
-          title="净利率"
-          value={kpiData.netProfitMargin.toFixed(1)}
-          unit="%"
-          trend={kpiData.netProfitMargin > 5 ? 'up' : 'down'}
-          description="净利润占营收比例"
-        />
-        
-        <KPICard
-          title="每股收益"
-          value={kpiData.eps.toFixed(2)}
-          unit=""
-          trend={kpiData.eps > 1 ? 'up' : 'down'}
-          description="EPS (稀释后)"
-        />
-        
-        <KPICard
-          title="营收增长"
-          value={kpiData.revenueGrowth.toFixed(1)}
-          unit="%"
-          trend={kpiData.revenueGrowth > 0 ? 'up' : kpiData.revenueGrowth < 0 ? 'down' : 'neutral'}
-          description="同比季度增长"
-        />
+      {/* 当前季度核心指标 */}
+      <div>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">当前季度表现</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+          <KPICard
+            title="季度营收"
+            value={kpiData.currentQuarter.revenue}
+            unit=""
+            change={kpiData.quarterOverQuarter.revenueGrowth}
+            trend={kpiData.quarterOverQuarter.revenueGrowth > 0 ? 'up' : kpiData.quarterOverQuarter.revenueGrowth < 0 ? 'down' : 'neutral'}
+            description="环比增长"
+          />
+          
+          <KPICard
+            title="毛利率"
+            value={kpiData.currentQuarter.grossProfitMargin.toFixed(1)}
+            unit="%"
+            trend={kpiData.currentQuarter.grossProfitMargin > 25 ? 'up' : 'down'}
+            description="毛利润占营收比例"
+          />
+          
+          <KPICard
+            title="净利率"
+            value={kpiData.currentQuarter.netProfitMargin.toFixed(1)}
+            unit="%"
+            change={kpiData.quarterOverQuarter.profitabilityChange}
+            trend={kpiData.currentQuarter.netProfitMargin > 8 ? 'up' : 'down'}
+            description="净利润占营收比例"
+          />
+          
+          <KPICard
+            title="资产回报率"
+            value={kpiData.currentQuarter.roa.toFixed(1)}
+            unit="%"
+            trend={kpiData.currentQuarter.roa > 5 ? 'up' : 'down'}
+            description="ROA"
+          />
+          
+          <KPICard
+            title="股东权益回报率"
+            value={kpiData.currentQuarter.roe.toFixed(1)}
+            unit="%"
+            trend={kpiData.currentQuarter.roe > 12 ? 'up' : 'down'}
+            description="ROE"
+          />
+        </div>
+      </div>
+
+      {/* 年度表现总览 */}
+      <div>
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">年度表现总览</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <KPICard
+            title="年度营收"
+            value={kpiData.currentYear.totalRevenue}
+            unit=""
+            change={kpiData.currentYear.yearOverYearGrowth}
+            trend={kpiData.currentYear.yearOverYearGrowth > 0 ? 'up' : kpiData.currentYear.yearOverYearGrowth < 0 ? 'down' : 'neutral'}
+            description="同比增长"
+          />
+          
+          <KPICard
+            title="平均毛利率"
+            value={kpiData.currentYear.avgGrossProfitMargin.toFixed(1)}
+            unit="%"
+            trend={kpiData.currentYear.avgGrossProfitMargin > 25 ? 'up' : 'down'}
+            description="年度平均水平"
+          />
+          
+          <KPICard
+            title="平均净利率"
+            value={kpiData.currentYear.avgNetProfitMargin.toFixed(1)}
+            unit="%"
+            trend={kpiData.currentYear.avgNetProfitMargin > 8 ? 'up' : 'down'}
+            description="年度平均水平"
+          />
+          
+          <KPICard
+            title="增长势头"
+            value={kpiData.currentYear.yearOverYearGrowth.toFixed(1)}
+            unit="%"
+            trend={kpiData.currentYear.yearOverYearGrowth > 0 ? 'up' : kpiData.currentYear.yearOverYearGrowth < 0 ? 'down' : 'neutral'}
+            description="年度同比增长"
+          />
+        </div>
       </div>
     </div>
   )

@@ -1,23 +1,17 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { RevenueChart, RevenuePieChart } from './RevenueChart'
-import { supabase } from '@/lib/supabase'
-import { Database } from '@/lib/supabase'
-
-type FinancialData = Database['public']['Tables']['financial_data']['Row']
-
-interface RevenueData {
-  period: string
-  revenue: number
-  grossProfit: number
-  netIncome: number
-}
+import { MultiViewChart } from './MultiViewChart'
+import { GeographicChart } from './GeographicChart'
+import { financialService, ProcessedFinancialData, YearlyFinancialData, GeographicData } from '@/lib/financial-service'
 
 export function RevenueAnalysis() {
-  const [revenueData, setRevenueData] = useState<RevenueData[]>([])
+  const [quarterlyData, setQuarterlyData] = useState<ProcessedFinancialData[]>([])
+  const [yearlyData, setYearlyData] = useState<YearlyFinancialData[]>([])
+  const [geographicData, setGeographicData] = useState<GeographicData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'quarterly' | 'yearly'>('yearly')
 
   useEffect(() => {
     fetchRevenueData()
@@ -26,96 +20,90 @@ export function RevenueAnalysis() {
   const fetchRevenueData = async () => {
     try {
       setLoading(true)
+      setError(null)
 
-      // 获取Netgear公司ID
-      const { data: companies, error: companyError } = await supabase
-        .from('companies')
-        .select('id')
-        .eq('symbol', 'NTGR')
-
-      if (companyError) {
-        console.error('查询公司数据错误:', companyError)
-        throw new Error('无法找到Netgear公司数据')
+      // 获取财务数据
+      let rawData: ProcessedFinancialData[]
+      try {
+        const data = await financialService.getRawFinancialData('NTGR', 20)
+        rawData = financialService.processFinancialData(data)
+      } catch (apiError) {
+        console.warn('无法获取真实数据，使用模拟数据:', apiError)
+        rawData = financialService.generateMockData()
       }
 
-      if (!companies || companies.length === 0) {
-        console.error('未找到NTGR公司记录')
-        throw new Error('无法找到Netgear公司数据')
+      if (rawData.length === 0) {
+        throw new Error('无数据可用')
       }
 
-      const company = companies[0]
+      // 设置季度数据（最近12个季度）
+      setQuarterlyData(rawData.slice(0, 12))
 
-      // 获取最近8个季度的财务数据
-      const { data: financialData, error: financialError } = await supabase
-        .from('financial_data')
-        .select('*')
-        .eq('company_id', company.id)
-        .order('period', { ascending: false })
-        .limit(8)
+      // 按年度分组数据
+      const yearly = financialService.groupByYear(rawData)
+      setYearlyData(yearly)
 
-      if (financialError) {
-        throw new Error('获取财务数据失败')
-      }
+      // 获取地理分布数据（基于最新季度营收）
+      const latestRevenue = rawData[0]?.revenue || 0
+      const geographic = financialService.getGeographicData(latestRevenue)
+      setGeographicData(geographic)
 
-      if (!financialData || financialData.length === 0) {
-        // 如果没有数据，显示模拟数据
-        const mockData = generateMockData()
-        setRevenueData(mockData)
-        setError(null) // 使用模拟数据不算错误
-        return
-      }
-
-      // 转换数据格式并排序（最新的在右边）
-      const processedData = financialData
-        .reverse()
-        .map(item => ({
-          period: item.period,
-          revenue: item.revenue || 0,
-          grossProfit: item.gross_profit || 0,
-          netIncome: item.net_income || 0
-        }))
-
-      setRevenueData(processedData)
-      
-      // 成功获取数据，清除错误状态
       setError(null)
 
     } catch (err) {
+      console.error('获取营收数据失败:', err)
       setError(err instanceof Error ? err.message : '获取数据失败')
-      // 显示模拟数据作为fallback
-      const mockData = generateMockData()
-      setRevenueData(mockData)
+      
+      // 使用模拟数据作为fallback
+      const mockData = financialService.generateMockData()
+      setQuarterlyData(mockData.slice(0, 12))
+      
+      const mockYearly = financialService.groupByYear(mockData)
+      setYearlyData(mockYearly)
+      
+      const mockGeographic = financialService.getGeographicData(mockData[0]?.revenue || 1000000000)
+      setGeographicData(mockGeographic)
+      
     } finally {
       setLoading(false)
     }
   }
 
-  const generateMockData = (): RevenueData[] => {
-    return [
-      { period: 'Q1-2023', revenue: 1150000000, grossProfit: 320000000, netIncome: 92000000 },
-      { period: 'Q2-2023', revenue: 1220000000, grossProfit: 345000000, netIncome: 98000000 },
-      { period: 'Q3-2023', revenue: 1180000000, grossProfit: 330000000, netIncome: 95000000 },
-      { period: 'Q4-2023', revenue: 1280000000, grossProfit: 365000000, netIncome: 115000000 },
-      { period: 'Q1-2024', revenue: 1200000000, grossProfit: 342000000, netIncome: 96000000 },
-      { period: 'Q2-2024', revenue: 1290000000, grossProfit: 368000000, netIncome: 105000000 },
-      { period: 'Q3-2024', revenue: 1250000000, grossProfit: 355000000, netIncome: 102000000 },
-      { period: 'Q4-2024', revenue: 1340000000, grossProfit: 385000000, netIncome: 118000000 }
-    ]
+  // 准备图表数据
+  const prepareQuarterlyChartData = () => {
+    return quarterlyData.slice(0, 8).reverse().map(item => ({
+      name: item.period,
+      营收: Math.round(item.revenue / 1e6), // 转为百万美元
+      毛利润: Math.round(item.grossProfit / 1e6),
+      净利润: Math.round(item.netIncome / 1e6)
+    }))
+  }
+
+  const prepareYearlyChartData = () => {
+    return yearlyData.slice(0, 3).reverse().map(item => ({
+      name: `${item.year}年`,
+      营收: Math.round(item.totalRevenue / 1e6),
+      毛利润: Math.round(item.totalGrossProfit / 1e6),
+      净利润: Math.round(item.totalNetIncome / 1e6)
+    }))
+  }
+
+  const prepareProfitabilityData = () => {
+    const data = viewMode === 'yearly' ? yearlyData.slice(0, 3).reverse() : quarterlyData.slice(0, 8).reverse()
+    return data.map(item => ({
+      name: viewMode === 'yearly' ? `${item.year}年` : item.period,
+      毛利率: viewMode === 'yearly' ? item.avgGrossProfitMargin : item.grossProfitMargin,
+      净利率: viewMode === 'yearly' ? item.avgNetProfitMargin : item.netProfitMargin,
+      资产回报率: item.roa || 0
+    }))
   }
 
   // 产品线营收占比数据（模拟）
   const productRevenueData = [
-    { name: '消费级路由器', value: 680000000, color: '#3b82f6' },
-    { name: '企业级设备', value: 420000000, color: '#10b981' },
-    { name: '交换机', value: 150000000, color: '#f59e0b' },
-    { name: '配件及其他', value: 90000000, color: '#8b5cf6' }
-  ]
-
-  // 地区营收分布数据（模拟）
-  const regionRevenueData = [
-    { name: '北美', value: 750000000, color: '#3b82f6' },
-    { name: '欧洲', value: 380000000, color: '#10b981' },
-    { name: '亚太', value: 210000000, color: '#f59e0b' }
+    { name: '消费级路由器', value: 680 },
+    { name: '企业级设备', value: 420 },
+    { name: '交换机', value: 150 },
+    { name: '配件及其他', value: 90 }
   ]
 
   if (loading) {
@@ -141,83 +129,124 @@ export function RevenueAnalysis() {
         </div>
       )}
 
-      {/* 营收趋势图表 */}
+      {/* 视图模式切换 */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">营收分析</h1>
+        <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
+          <button
+            onClick={() => setViewMode('yearly')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              viewMode === 'yearly'
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            年度视图
+          </button>
+          <button
+            onClick={() => setViewMode('quarterly')}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              viewMode === 'quarterly'
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            季度视图
+          </button>
+        </div>
+      </div>
+
+      {/* 营收趋势分析 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RevenueChart
-          data={revenueData}
-          type="line"
-          title="营收趋势分析"
+        <MultiViewChart
+          data={viewMode === 'yearly' ? prepareYearlyChartData() : prepareQuarterlyChartData()}
+          views={['line', 'bar', 'area', 'table']}
+          defaultView="line"
+          title={`${viewMode === 'yearly' ? '年度' : '季度'}营收趋势`}
           height={350}
         />
         
-        <RevenueChart
-          data={revenueData}
-          type="bar"
-          title="季度营收对比"
+        <MultiViewChart
+          data={prepareProfitabilityData()}
+          views={['line', 'bar', 'table']}
+          defaultView="line"
+          title="盈利能力分析"
           height={350}
         />
       </div>
 
-      {/* 利润分析 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RevenueChart
-          data={revenueData}
-          type="area"
-          title="利润分析趋势"
-          height={350}
-        />
-        
-        <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">关键财务指标</h3>
-          <div className="space-y-4">
-            {revenueData.length > 0 && (
-              <>
-                <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                  <span className="text-sm font-medium text-gray-700">最新季度营收</span>
-                  <span className="text-lg font-bold text-blue-600">
-                    ${(revenueData[revenueData.length - 1].revenue / 1e9).toFixed(2)}B
-                  </span>
+      {/* 关键财务指标总览 */}
+      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          {viewMode === 'yearly' ? '年度' : '季度'}关键指标
+        </h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {(viewMode === 'yearly' ? yearlyData[0] : quarterlyData[0]) && (
+            <>
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <div className="text-sm font-medium text-gray-700">
+                  {viewMode === 'yearly' ? '年度营收' : '季度营收'}
                 </div>
-                
-                <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                  <span className="text-sm font-medium text-gray-700">毛利率</span>
-                  <span className="text-lg font-bold text-green-600">
-                    {((revenueData[revenueData.length - 1].grossProfit / revenueData[revenueData.length - 1].revenue) * 100).toFixed(1)}%
-                  </span>
+                <div className="text-2xl font-bold text-blue-600">
+                  ${viewMode === 'yearly' 
+                    ? (yearlyData[0].totalRevenue / 1e9).toFixed(2) + 'B'
+                    : (quarterlyData[0].revenue / 1e6).toFixed(0) + 'M'
+                  }
                 </div>
-                
-                <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
-                  <span className="text-sm font-medium text-gray-700">净利率</span>
-                  <span className="text-lg font-bold text-yellow-600">
-                    {((revenueData[revenueData.length - 1].netIncome / revenueData[revenueData.length - 1].revenue) * 100).toFixed(1)}%
-                  </span>
+                <div className="text-sm text-gray-600">
+                  {viewMode === 'yearly' 
+                    ? `同比增长 ${yearlyData[0].yearOverYearGrowth.toFixed(1)}%`
+                    : `环比增长 ${quarterlyData[1] ? (((quarterlyData[0].revenue - quarterlyData[1].revenue) / quarterlyData[1].revenue) * 100).toFixed(1) : '0.0'}%`
+                  }
                 </div>
-                
-                <div className="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
-                  <span className="text-sm font-medium text-gray-700">年化营收增长</span>
-                  <span className="text-lg font-bold text-purple-600">
-                    {revenueData.length >= 4 ? 
-                      (((revenueData[revenueData.length - 1].revenue / revenueData[revenueData.length - 5].revenue) - 1) * 100).toFixed(1) : 
-                      '0.0'
-                    }%
-                  </span>
+              </div>
+              
+              <div className="p-4 bg-green-50 rounded-lg">
+                <div className="text-sm font-medium text-gray-700">平均毛利率</div>
+                <div className="text-2xl font-bold text-green-600">
+                  {viewMode === 'yearly' 
+                    ? yearlyData[0].avgGrossProfitMargin.toFixed(1)
+                    : quarterlyData[0].grossProfitMargin.toFixed(1)
+                  }%
                 </div>
-              </>
-            )}
-          </div>
+                <div className="text-sm text-gray-600">毛利润占营收比例</div>
+              </div>
+              
+              <div className="p-4 bg-yellow-50 rounded-lg">
+                <div className="text-sm font-medium text-gray-700">平均净利率</div>
+                <div className="text-2xl font-bold text-yellow-600">
+                  {viewMode === 'yearly' 
+                    ? yearlyData[0].avgNetProfitMargin.toFixed(1)
+                    : quarterlyData[0].netProfitMargin.toFixed(1)
+                  }%
+                </div>
+                <div className="text-sm text-gray-600">净利润占营收比例</div>
+              </div>
+              
+              <div className="p-4 bg-purple-50 rounded-lg">
+                <div className="text-sm font-medium text-gray-700">资产回报率</div>
+                <div className="text-2xl font-bold text-purple-600">
+                  {quarterlyData[0].roa.toFixed(1)}%
+                </div>
+                <div className="text-sm text-gray-600">ROA</div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
       {/* 产品线和地区分析 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RevenuePieChart
+        <MultiViewChart
           data={productRevenueData}
+          views={['pie', 'bar', 'table']}
+          defaultView="pie"
           title="产品线营收占比"
           height={300}
         />
         
-        <RevenuePieChart
-          data={regionRevenueData}
+        <GeographicChart
+          data={geographicData}
           title="地区营收分布"
           height={300}
         />
