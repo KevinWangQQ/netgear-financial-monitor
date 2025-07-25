@@ -89,13 +89,21 @@ export function RevenueAnalysis() {
   }
 
   const prepareProfitabilityData = () => {
-    const data = viewMode === 'yearly' ? yearlyData.slice(0, 3).reverse() : quarterlyData.slice(0, 8).reverse()
-    return data.map(item => ({
-      name: viewMode === 'yearly' ? `${item.year}年` : item.period,
-      毛利率: viewMode === 'yearly' ? item.avgGrossProfitMargin : item.grossProfitMargin,
-      净利率: viewMode === 'yearly' ? item.avgNetProfitMargin : item.netProfitMargin,
-      资产回报率: item.roa || 0
-    }))
+    if (viewMode === 'yearly') {
+      return yearlyData.slice(0, 3).reverse().map(item => ({
+        name: `${item.year}年`,
+        毛利率: item.avgGrossProfitMargin,
+        净利率: item.avgNetProfitMargin,
+        资产回报率: 0 // 年度数据暂时不计算ROA
+      }))
+    } else {
+      return quarterlyData.slice(0, 8).reverse().map(item => ({
+        name: item.period,
+        毛利率: item.grossProfitMargin,
+        净利率: item.netProfitMargin,
+        资产回报率: item.roa
+      }))
+    }
   }
 
   // 产品线营收占比数据（模拟）
