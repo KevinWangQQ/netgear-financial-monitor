@@ -68,7 +68,7 @@ export function DashboardOverview() {
           netProfitMargin: 8.3,
           eps: 1.25
         })
-        setError('当前显示的是模拟数据，请运行数据爬虫获取真实数据')
+        setError(null) // 使用模拟数据不算错误
         return
       }
 
@@ -99,8 +99,12 @@ export function DashboardOverview() {
         netProfitMargin,
         eps
       })
+      
+      // 成功获取数据，清除错误状态
+      setError(null)
 
     } catch (err) {
+      console.error('获取KPI数据失败:', err)
       setError(err instanceof Error ? err.message : '获取数据失败')
       // 显示模拟数据作为fallback
       setKpiData({

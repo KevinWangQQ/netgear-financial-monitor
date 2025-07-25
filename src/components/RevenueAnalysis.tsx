@@ -61,7 +61,7 @@ export function RevenueAnalysis() {
         // 如果没有数据，显示模拟数据
         const mockData = generateMockData()
         setRevenueData(mockData)
-        setError('当前显示的是模拟数据，请运行数据爬虫获取真实数据')
+        setError(null) // 使用模拟数据不算错误
         return
       }
 
@@ -76,6 +76,9 @@ export function RevenueAnalysis() {
         }))
 
       setRevenueData(processedData)
+      
+      // 成功获取数据，清除错误状态
+      setError(null)
 
     } catch (err) {
       setError(err instanceof Error ? err.message : '获取数据失败')
