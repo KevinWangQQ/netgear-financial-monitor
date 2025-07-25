@@ -49,8 +49,8 @@ export function ProfitabilityAnalysis({
     new Set(['grossProfitMargin', 'netProfitMargin', 'operatingMargin'])
   )
 
-  // 指标配置
-  const metrics = [
+  // 指标配置 - 使用useMemo避免重新创建
+  const metrics = useMemo(() => [
     { 
       key: 'grossProfitMargin', 
       name: '毛利率', 
@@ -79,7 +79,7 @@ export function ProfitabilityAnalysis({
       unit: '%',
       threshold: { good: 3, excellent: 10 }
     }
-  ]
+  ], [])
 
   // 切换指标显示
   const toggleMetric = (metricKey: string) => {

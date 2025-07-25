@@ -37,7 +37,7 @@ interface RevenueTrendChartProps {
   onExport?: () => void
 }
 
-// 数据系列配置
+// 数据系列配置 - 移到组件外部避免重新创建
 const DATA_SERIES = [
   { key: 'revenue', name: '营收', color: '#3b82f6', visible: true },
   { key: 'grossProfit', name: '毛利润', color: '#10b981', visible: true },
