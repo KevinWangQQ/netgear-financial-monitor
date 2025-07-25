@@ -1,0 +1,41 @@
+name: Update Financial Data
+
+on:
+  schedule:
+    # 每天早上8点（UTC）运行，即北京时间下午4点
+    - cron: '0 8 * * *'
+    # 每周一运行更完整的数据更新
+    - cron: '0 9 * * 1'
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r scripts/requirements.txt
+
+    - name: Update financial data
+      env:
+        ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+        NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      run: |
+        cd scripts
+        python financial_data_crawler.py
+
+    - name: Log completion
+      run: |
+        echo "Financial data update completed at $(date)"
+        echo "Next scheduled run: Tomorrow at 8:00 UTC"
