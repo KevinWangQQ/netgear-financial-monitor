@@ -207,17 +207,12 @@ export function MilestoneEventsChart({
           isHorizontal ? (
             // 自定义水平时间轴
             <div className="relative h-full">
+              {/* 主时间轴线 */}
+              <div className="absolute top-12 left-4 right-4 h-0.5 bg-gray-200" style={{ zIndex: 0 }}></div>
+              
               <div className="flex items-start p-4 gap-8" style={{ minWidth: `${sortedEvents.length * 280}px` }}>
                 {sortedEvents.map((event, index) => (
                   <div key={event.id} className="relative flex flex-col items-center">
-                    {/* 时间线连接线 */}
-                    {index < sortedEvents.length - 1 && (
-                      <div 
-                        className="absolute top-8 left-12 w-20 h-0.5 bg-gray-300"
-                        style={{ zIndex: 1 }}
-                      />
-                    )}
-                    
                     {/* 时间点标记 */}
                     <div className="relative flex flex-col items-center mb-4">
                       <div className="w-6 h-6 rounded-full bg-white border-4 flex items-center justify-center relative z-10"

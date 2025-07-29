@@ -320,6 +320,14 @@ export function ProfitabilityAnalysis({
           return tooltip
         }
       },
+      // 禁用缩放和工具箱
+      toolbox: {
+        show: false
+      },
+      dataZoom: [],
+      brush: {
+        toolbox: []
+      },
       legend: {
         data: metrics.filter(m => selectedMetrics.has(m.key)).map(m => m.name),
         top: 10,

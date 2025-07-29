@@ -453,43 +453,144 @@ class FinancialService {
   private generateMilestoneEvents(period: string, year: number, quarter: number): FinancialEvent[] {
     const events: FinancialEvent[] = []
     
-    // 基于时间生成一些典型事件
-    if (quarter === 1) {
-      events.push({
-        id: `${period}-q1-guidance`,
-        date: `${year}-01-15`,
-        type: 'financial',
-        title: '发布全年业绩指引',
-        description: `${year}年全年营收指引上调至${Math.floor(Math.random() * 100) + 900}M-${Math.floor(Math.random() * 100) + 1000}M美元`,
-        impact: 'positive',
-        impactLevel: 3,
-        relatedMetrics: ['revenue', 'guidance']
-      })
-    }
-    
-    if (quarter === 2 && Math.random() > 0.7) {
-      events.push({
-        id: `${period}-product-launch`,
-        date: `${year}-04-${Math.floor(Math.random() * 28) + 1}`,
-        type: 'product',
-        title: '新一代Wi-Fi 7路由器发布',
-        description: '推出支持最新Wi-Fi 7标准的高端路由器产品线，预期带动下半年营收增长',
-        impact: 'positive',
-        impactLevel: 4,
-        relatedMetrics: ['revenue', 'productRevenue']
-      })
-    }
-    
-    if (quarter === 3 && Math.random() > 0.8) {
-      events.push({
-        id: `${period}-partnership`,
-        date: `${year}-07-${Math.floor(Math.random() * 31) + 1}`,
-        type: 'market',
-        title: '与云服务商战略合作',
-        description: '与主要云服务提供商签署战略合作协议，拓展企业级网络设备市场',
-        impact: 'positive',
-        impactLevel: 3,
-        relatedMetrics: ['revenue', 'marketShare']
+    // 每个季度都生成2-3个事件，确保时间轴有足够内容
+    const quarterEvents = [
+      // Q1 事件
+      {
+        quarter: 1,
+        events: [
+          {
+            type: 'financial' as const,
+            title: '发布全年业绩指引',
+            description: `${year}年全年营收指引上调至${Math.floor(Math.random() * 100) + 900}M-${Math.floor(Math.random() * 100) + 1000}M美元`,
+            impact: 'positive' as const,
+            impactLevel: 3,
+            date: `${year}-01-15`
+          },
+          {
+            type: 'product_launch' as const,
+            title: '年度产品规划发布',
+            description: '公布新一年的产品路线图，重点关注5G和Wi-Fi 7技术',
+            impact: 'positive' as const,
+            impactLevel: 3,
+            date: `${year}-02-28`
+          },
+          {
+            type: 'market_expansion' as const,
+            title: '拓展欧洲市场',
+            description: '与欧洲主要运营商签署战略合作协议，扩大市场份额',
+            impact: 'positive' as const,
+            impactLevel: 4,
+            date: `${year}-03-10`
+          }
+        ]
+      },
+      // Q2 事件
+      {
+        quarter: 2,
+        events: [
+          {
+            type: 'product_launch' as const,
+            title: '新一代Wi-Fi 7路由器发布',
+            description: '推出支持最新Wi-Fi 7标准的高端路由器产品线，预期带动下半年营收增长',
+            impact: 'positive' as const,
+            impactLevel: 4,
+            date: `${year}-04-15`
+          },
+          {
+            type: 'financial_milestone' as const,
+            title: '季度营收创新高',
+            description: `Q2季度营收达到${Math.floor(Math.random() * 50) + 250}M美元，同比增长${Math.floor(Math.random() * 10) + 8}%`,
+            impact: 'positive' as const,
+            impactLevel: 4,
+            date: `${year}-05-20`
+          },
+          {
+            type: 'regulatory_change' as const,
+            title: '获得重要技术认证',
+            description: '新产品获得FCC和CE认证，为全球销售铺平道路',
+            impact: 'positive' as const,
+            impactLevel: 3,
+            date: `${year}-06-05`
+          }
+        ]
+      },
+      // Q3 事件  
+      {
+        quarter: 3,
+        events: [
+          {
+            type: 'strategic_partnership' as const,
+            title: '与云服务商战略合作',
+            description: '与主要云服务提供商签署战略合作协议，拓展企业级网络设备市场',
+            impact: 'positive' as const,
+            impactLevel: 3,
+            date: `${year}-07-12`
+          },
+          {
+            type: 'acquisition' as const,
+            title: '收购AI网络技术公司',
+            description: '收购一家专注于AI网络优化的初创公司，加强技术储备',
+            impact: 'positive' as const,  
+            impactLevel: 4,
+            date: `${year}-08-25`
+          },
+          {
+            type: 'market_expansion' as const,
+            title: '进军亚太新兴市场',
+            description: '在东南亚和印度市场建立新的销售渠道',
+            impact: 'positive' as const,
+            impactLevel: 3,
+            date: `${year}-09-08`
+          }
+        ]
+      },
+      // Q4 事件
+      {
+        quarter: 4,
+        events: [
+          {
+            type: 'product_launch' as const,
+            title: '假日季产品促销',
+            description: '推出针对消费者市场的假日季促销活动，预期带动Q4销量',
+            impact: 'positive' as const,
+            impactLevel: 3,
+            date: `${year}-10-15`
+          },
+          {
+            type: 'financial_milestone' as const,
+            title: '年度业绩目标达成',
+            description: `提前完成年度营收目标，全年营收预计达到${year < 2024 ? '950' : year === 2024 ? '1050' : '1150'}M美元`,
+            impact: 'positive' as const,
+            impactLevel: 5,
+            date: `${year}-11-20`
+          },
+          {
+            type: 'strategic_partnership' as const,
+            title: '建立研发合作伙伴关系',
+            description: '与高通、博通等芯片厂商建立长期技术合作关系',
+            impact: 'positive' as const,
+            impactLevel: 4,
+            date: `${year}-12-10`
+          }
+        ]
+      }
+    ]
+
+    // 根据当前季度生成对应事件
+    const currentQuarterEvents = quarterEvents.find(q => q.quarter === quarter)
+    if (currentQuarterEvents) {
+      currentQuarterEvents.events.forEach((eventTemplate, index) => {
+        events.push({
+          id: `${period}-event-${index}`,
+          date: eventTemplate.date,
+          type: eventTemplate.type,
+          title: eventTemplate.title,
+          description: eventTemplate.description,
+          impact: eventTemplate.impact,
+          impactLevel: eventTemplate.impactLevel,
+          relatedMetrics: ['revenue', 'growth']
+        })
       })
     }
     

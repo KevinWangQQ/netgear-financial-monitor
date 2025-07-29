@@ -162,7 +162,15 @@ export function ProductLineRevenue({
       },
       animation: true,
       animationDuration: 1000,
-      animationEasing: 'cubicOut' as const
+      animationEasing: 'cubicOut' as const,
+      // 禁用所有交互功能
+      toolbox: {
+        show: false
+      },
+      dataZoom: [],
+      brush: {
+        toolbox: []
+      }
     }
 
     switch (viewMode) {

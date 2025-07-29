@@ -282,10 +282,16 @@ export function InteractiveMap({
   // 获取国家所属区域
   const getCountryRegion = (countryName: string) => {
     for (const [regionKey, countries] of Object.entries(REGION_MAPPINGS)) {
-      if (countries.some(name => 
-        countryName.toLowerCase().includes(name.toLowerCase()) ||
-        name.toLowerCase().includes(countryName.toLowerCase())
-      )) {
+      // 使用精确匹配，避免误匹配
+      if (countries.some(name => {
+        const country = countryName.toLowerCase().trim()
+        const mappedName = name.toLowerCase().trim()
+        
+        // 精确匹配或完整单词匹配
+        return country === mappedName || 
+               country.includes(mappedName) && country.length - mappedName.length <= 3 ||
+               mappedName.includes(country) && mappedName.length - country.length <= 3
+      })) {
         return regionKey === 'North America' ? '北美' :
                regionKey === 'Europe' ? '欧洲' :
                regionKey === 'Asia Pacific' ? '亚太' : null

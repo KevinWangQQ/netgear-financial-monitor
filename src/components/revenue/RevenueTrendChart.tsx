@@ -229,6 +229,14 @@ export function RevenueTrendChart({
           color: '#374151'
         }
       },
+      // 禁用缩放和工具箱
+      toolbox: {
+        show: false
+      },
+      dataZoom: [],
+      brush: {
+        toolbox: []
+      },
       legend: {
         data: DATA_SERIES.filter(s => visibleSeries.has(s.key)).map(s => s.name),
         top: 10,
