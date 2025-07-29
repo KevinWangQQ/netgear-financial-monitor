@@ -90,6 +90,68 @@ export function UnifiedDashboard() {
     return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`
   }
 
+  // 导出财务数据为CSV
+  const exportToCSV = async () => {
+    try {
+      setIsLoading(true)
+      
+      // 获取原始财务数据
+      let rawData: ProcessedFinancialData[]
+      try {
+        const data = await financialService.getRawFinancialData('NTGR', 50)
+        rawData = financialService.processFinancialData(data)
+      } catch (apiError) {
+        console.warn('无法获取真实数据，使用模拟数据:', apiError)
+        rawData = financialService.generateMockData()
+      }
+
+      // 准备CSV数据
+      const csvData = rawData.map(item => ({
+        '期间': item.period,
+        '年份': item.year,
+        '季度': item.quarter,
+        '营收(美元)': item.revenue,
+        '毛利润(美元)': item.grossProfit,
+        '净利润(美元)': item.netIncome,
+        '总资产(美元)': item.totalAssets,
+        '运营费用(美元)': item.operatingExpenses,
+        '现金及等价物(美元)': item.cashAndEquivalents,
+        '总债务(美元)': item.totalDebt,
+        '毛利率(%)': item.grossProfitMargin.toFixed(2),
+        '净利率(%)': item.netProfitMargin.toFixed(2),
+        '资产回报率(%)': item.roa.toFixed(2),
+        '股本回报率(%)': item.roe.toFixed(2),
+        '负债资产比(%)': item.debtToAssets.toFixed(2),
+        '现金比率(%)': item.cashRatio.toFixed(2)
+      }))
+
+      // 转换为CSV格式
+      const headers = Object.keys(csvData[0])
+      const csvContent = [
+        headers.join(','),
+        ...csvData.map(row => headers.map(header => `"${row[header as keyof typeof row]}"`).join(','))
+      ].join('\n')
+
+      // 下载文件
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      link.setAttribute('download', `netgear_financial_data_${new Date().toISOString().split('T')[0]}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      toast.success('财务数据导出成功')
+    } catch (error) {
+      console.error('导出失败:', error)
+      toast.error('导出失败，请重试')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -113,20 +175,26 @@ export function UnifiedDashboard() {
                 更新时间: {formatDateTime(lastUpdated)}
               </div>
               
-              {/* 刷新按钮 */}
-              <button
-                onClick={refreshData}
-                disabled={isLoading}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-              >
-                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                <span>刷新数据</span>
-              </button>
+              {/* 刷新按钮 - 只在竞争对比页面显示 */}
+              {selectedTab !== 0 && (
+                <button
+                  onClick={refreshData}
+                  disabled={isLoading}
+                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                  <span>刷新数据</span>
+                </button>
+              )}
               
               {/* 导出按钮 */}
-              <button className="flex items-center space-x-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50">
+              <button 
+                onClick={exportToCSV}
+                disabled={isLoading}
+                className="flex items-center space-x-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 <Download className="w-4 h-4" />
-                <span>导出报告</span>
+                <span>{isLoading ? '导出中...' : '导出报告'}</span>
               </button>
             </div>
           </div>

@@ -110,27 +110,40 @@ export function MultiViewChart({
     </ResponsiveContainer>
   )
 
-  const renderPieChart = () => (
-    <ResponsiveContainer width="100%" height={height}>
-      <PieChart>
-        <Pie
-          data={data}
-          cx="50%"
-          cy="50%"
-          labelLine={false}
-          label={({ name, percent }) => `${name} ${percent ? (percent * 100).toFixed(0) : 0}%`}
-          outerRadius={80}
-          fill="#8884d8"
-          dataKey="value"
-        >
-          {data.map((_, index) => (
-            <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-          ))}
-        </Pie>
-        <Tooltip />
-      </PieChart>
-    </ResponsiveContainer>
-  )
+  const renderPieChart = () => {
+    // 自动检测数值字段用于饼图
+    const dataKeys = Object.keys(data[0] || {}).filter(key => key !== 'name')
+    const valueKey = dataKeys.find(key => typeof data[0]?.[key] === 'number') || dataKeys[0] || 'value'
+    
+    // 转换数据格式以适配饼图
+    const pieData = data.map(item => ({
+      name: item.name,
+      value: item[valueKey] || 0
+    }))
+    
+    return (
+      <ResponsiveContainer width="100%" height={height}>
+        <PieChart>
+          <Pie
+            data={pieData}
+            cx="50%"
+            cy="50%"
+            labelLine={false}
+            label={({ name, percent }) => `${name} ${percent ? (percent * 100).toFixed(0) : 0}%`}
+            outerRadius={Math.min(height * 0.3, 120)}
+            fill="#8884d8"
+            dataKey="value"
+          >
+            {pieData.map((_, index) => (
+              <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+            ))}
+          </Pie>
+          <Tooltip formatter={(value) => [typeof value === 'number' ? value.toLocaleString() : value, valueKey]} />
+          <Legend />
+        </PieChart>
+      </ResponsiveContainer>
+    )
+  }
 
   const renderAreaChart = () => (
     <ResponsiveContainer width="100%" height={height}>

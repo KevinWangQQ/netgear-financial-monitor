@@ -198,9 +198,9 @@ export function SWOTAnalysis({
       </Card>
 
       {/* SWOT四象限分析 */}
-      <Row gutter={[16, 16]}>
+      <Row gutter={[16, 16]} className="swot-quadrants">
         {swotQuadrants.map(quadrant => (
-          <Col key={quadrant.key} xs={24} lg={12}>
+          <Col key={quadrant.key} xs={24} lg={12} className="flex">
             <Card
               title={
                 <div className="flex items-center justify-between">
@@ -217,12 +217,17 @@ export function SWOTAnalysis({
                   />
                 </div>
               }
+              className="w-full"
               style={{ 
                 backgroundColor: quadrant.color,
                 borderLeft: `4px solid ${quadrant.borderColor}`,
-                height: '400px'
+                minHeight: '450px',
+                height: 'auto'
               }}
-              bodyStyle={{ height: 'calc(100% - 57px)', overflow: 'auto' }}
+              bodyStyle={{ 
+                overflow: 'visible',
+                paddingBottom: '24px'
+              }}
             >
               <Text type="secondary" className="block mb-4 text-sm">
                 {quadrant.description}

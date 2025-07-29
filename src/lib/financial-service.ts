@@ -192,14 +192,29 @@ class FinancialService {
       })
     }
 
-    // 计算同比增长
+    // 计算同期对比增长（避免不完整年度数据的问题）
     yearlyData.sort((a, b) => a.year - b.year)
     for (let i = 1; i < yearlyData.length; i++) {
       const current = yearlyData[i]
       const previous = yearlyData[i - 1]
       
-      if (previous.totalRevenue > 0) {
-        current.yearOverYearGrowth = ((current.totalRevenue - previous.totalRevenue) / previous.totalRevenue) * 100
+      // 获取当前年度已有的季度数
+      const currentQuarters = current.quarters.length
+      
+      // 如果当前年度不足4个季度，使用同期季度对比
+      if (currentQuarters < 4) {
+        // 获取去年同期的季度数据
+        const previousSamePeriod = previous.quarters.slice(0, currentQuarters)
+        const previousSamePeriodRevenue = previousSamePeriod.reduce((sum, q) => sum + q.revenue, 0)
+        
+        if (previousSamePeriodRevenue > 0) {
+          current.yearOverYearGrowth = ((current.totalRevenue - previousSamePeriodRevenue) / previousSamePeriodRevenue) * 100
+        }
+      } else {
+        // 完整年度数据，使用全年对比
+        if (previous.totalRevenue > 0) {
+          current.yearOverYearGrowth = ((current.totalRevenue - previous.totalRevenue) / previous.totalRevenue) * 100
+        }
       }
     }
 
