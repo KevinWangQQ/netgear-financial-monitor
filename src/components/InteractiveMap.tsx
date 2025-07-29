@@ -36,6 +36,9 @@ const Tooltip = dynamic(
   { ssr: false }
 )
 
+// 动态导入topojson
+const topojson = dynamic(() => import('topojson-client'), { ssr: false })
+
 // 地理数据接口
 export interface GeographicData {
   region: string
@@ -62,39 +65,30 @@ interface InteractiveMapProps {
   showControls?: boolean
 }
 
-// 地理边界数据（简化的GeoJSON）
-const GEOGRAPHIC_BOUNDARIES = {
-  'North America': {
-    type: 'Feature',
-    properties: { name: 'North America', region: '北美' },
-    geometry: {
-      type: 'Polygon',
-      coordinates: [[
-        [-170, 20], [-60, 20], [-60, 75], [-170, 75], [-170, 20]
-      ]]
-    }
-  },
-  'Europe': {
-    type: 'Feature', 
-    properties: { name: 'Europe', region: '欧洲' },
-    geometry: {
-      type: 'Polygon',
-      coordinates: [[
-        [-10, 35], [40, 35], [40, 70], [-10, 70], [-10, 35]
-      ]]
-    }
-  },
-  'Asia Pacific': {
-    type: 'Feature',
-    properties: { name: 'Asia Pacific', region: '亚太' },
-    geometry: {
-      type: 'Polygon', 
-      coordinates: [[
-        [90, 10], [180, 10], [180, 60], [90, 60], [90, 10]
-      ]]
-    }
-  }
+// 区域国家映射
+const REGION_MAPPINGS = {
+  'North America': [
+    'United States of America', 'Canada', 'Mexico',
+    'United States', 'US', 'USA' // 备用名称
+  ],
+  'Europe': [
+    'Germany', 'France', 'United Kingdom', 'Italy', 'Spain',
+    'Poland', 'Netherlands', 'Belgium', 'Sweden', 'Norway',
+    'Denmark', 'Finland', 'Austria', 'Switzerland', 'Portugal',
+    'Czech Republic', 'Czechia', 'Hungary', 'Greece', 'Ireland', 'Croatia',
+    'Slovakia', 'Slovenia', 'Estonia', 'Latvia', 'Lithuania',
+    'Romania', 'Bulgaria', 'Luxembourg', 'Malta', 'Cyprus'
+  ],
+  'Asia Pacific': [
+    'China', 'Japan', 'South Korea', 'Australia', 'India',
+    'Indonesia', 'Thailand', 'Vietnam', 'Philippines', 'Malaysia',
+    'Singapore', 'New Zealand', 'Taiwan', 'Hong Kong',
+    'South Korea', 'Korea', 'Republic of Korea'
+  ]
 };
+
+// TopoJSON数据URL
+const TOPOJSON_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
 
 // 默认地图数据
 const DEFAULT_MAP_DATA: GeographicData[] = [
@@ -190,10 +184,31 @@ export function InteractiveMap({
   const [selectedRegion, setSelectedRegion] = useState<GeographicData | null>(null)
   const [viewType, setViewType] = useState<'revenue' | 'growth' | 'market'>('revenue')
   const [isLoaded, setIsLoaded] = useState(false)
+  const [geoJsonData, setGeoJsonData] = useState<any>(null)
+  const [mapDataLoading, setMapDataLoading] = useState(true)
 
   useEffect(() => {
     setIsLoaded(true)
+    // 加载TopoJSON数据
+    loadMapData()
   }, [])
+
+  const loadMapData = async () => {
+    try {
+      const response = await fetch(TOPOJSON_URL)
+      const topoData = await response.json()
+      
+      // 动态导入topojson并转换数据
+      const { feature } = await import('topojson-client')
+      const countries = feature(topoData, topoData.objects.countries)
+      setGeoJsonData(countries)
+    } catch (error) {
+      console.error('加载地图数据失败:', error)
+      // 可以在这里fallback到原来的简化边界
+    } finally {
+      setMapDataLoading(false)
+    }
+  }
 
   // 计算总值用于百分比计算
   const totalRevenue = useMemo(() => 
@@ -234,6 +249,51 @@ export function InteractiveMap({
     }
   }
 
+  // 获取区域样式
+  const getRegionStyle = (regionName: string) => {
+    const regionData = data.find(item => 
+      (regionName === '北美' && item.region === '北美') ||
+      (regionName === '欧洲' && item.region === '欧洲') ||
+      (regionName === '亚太' && item.region === '亚太')
+    )
+    
+    if (!regionData) return { fillOpacity: 0, weight: 0 }
+    
+    const markerInfo = getMarkerInfo(regionData)
+    
+    return {
+      fillColor: markerInfo.color,
+      weight: 2,
+      opacity: 1,
+      color: 'white',
+      dashArray: '3',
+      fillOpacity: 0.7
+    }
+  }
+
+  // 判断国家是否属于某个区域
+  const isCountryInRegion = (countryName: string, regionKey: string) => {
+    return REGION_MAPPINGS[regionKey as keyof typeof REGION_MAPPINGS]?.some(name => 
+      countryName.toLowerCase().includes(name.toLowerCase()) ||
+      name.toLowerCase().includes(countryName.toLowerCase())
+    ) || false
+  }
+
+  // 获取国家所属区域
+  const getCountryRegion = (countryName: string) => {
+    for (const [regionKey, countries] of Object.entries(REGION_MAPPINGS)) {
+      if (countries.some(name => 
+        countryName.toLowerCase().includes(name.toLowerCase()) ||
+        name.toLowerCase().includes(countryName.toLowerCase())
+      )) {
+        return regionKey === 'North America' ? '北美' :
+               regionKey === 'Europe' ? '欧洲' :
+               regionKey === 'Asia Pacific' ? '亚太' : null
+      }
+    }
+    return null
+  }
+
   // 获取图例数据
   const getLegendData = () => {
     const sortedData = [...data].sort((a, b) => {
@@ -248,14 +308,14 @@ export function InteractiveMap({
     }))
   }
 
-  if (!isLoaded) {
+  if (!isLoaded || mapDataLoading) {
     return (
       <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
         <div className="flex items-center justify-center" style={{ height }}>
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-            <p className="text-gray-500">加载地图中...</p>
+            <p className="text-gray-500">{mapDataLoading ? '加载地图数据中...' : '加载地图中...'}</p>
           </div>
         </div>
       </div>
@@ -309,49 +369,45 @@ export function InteractiveMap({
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             
-            {/* 渲染地理热区 */}
-            {Object.entries(GEOGRAPHIC_BOUNDARIES).map(([key, geoData]) => {
-              const regionData = data.find(item => 
-                (key === 'North America' && item.region === '北美') ||
-                (key === 'Europe' && item.region === '欧洲') ||
-                (key === 'Asia Pacific' && item.region === '亚太')
-              );
+            {/* 渲染真实地理边界 */}
+            {geoJsonData && geoJsonData.features && geoJsonData.features.map((feature: any, index: number) => {
+              const countryName = feature.properties.NAME || feature.properties.NAME_EN || feature.properties.name
+              const regionName = getCountryRegion(countryName)
               
-              if (!regionData) return null;
+              if (!regionName) return null // 只显示我们关心的区域
               
-              const markerInfo = getMarkerInfo(regionData);
+              const regionData = data.find(item => item.region === regionName)
+              if (!regionData) return null
+              
+              const markerInfo = getMarkerInfo(regionData)
               
               return (
                 <GeoJSON
-                  key={key}
-                  data={geoData as any}
+                  key={`${regionName}-${index}`}
+                  data={feature}
                   style={{
                     fillColor: markerInfo.color,
-                    weight: 2,
-                    opacity: 1,
+                    weight: 1,
+                    opacity: 0.8,
                     color: 'white',
-                    dashArray: '3',
-                    fillOpacity: 0.7
+                    fillOpacity: 0.6
                   }}
                   eventHandlers={{
                     click: () => setSelectedRegion(regionData),
                     mouseover: (e) => {
                       const layer = e.target;
                       layer.setStyle({
-                        weight: 3,
-                        color: '#666',
-                        dashArray: '',
-                        fillOpacity: 0.9
+                        weight: 2,
+                        color: '#333',
+                        fillOpacity: 0.8
                       });
                     },
                     mouseout: (e) => {
                       const layer = e.target;
                       layer.setStyle({
-                        weight: 2,
-                        opacity: 1,
+                        weight: 1,
                         color: 'white',
-                        dashArray: '3',
-                        fillOpacity: 0.7
+                        fillOpacity: 0.6
                       });
                     }
                   }}
@@ -360,12 +416,13 @@ export function InteractiveMap({
                     <div className="p-2 min-w-64">
                       <h4 className="font-semibold text-lg mb-2 flex items-center gap-2">
                         <MapPin className="w-4 h-4" />
-                        {regionData.region}
+                        {countryName}
                       </h4>
+                      <p className="text-sm text-gray-600 mb-2">所属区域: {regionName}</p>
                       
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span>营收:</span>
+                          <span>区域营收:</span>
                           <span className="font-medium">${(regionData.revenue / 1e6).toFixed(1)}M</span>
                         </div>
                         <div className="flex justify-between">
@@ -387,30 +444,7 @@ export function InteractiveMap({
                             <span className="font-medium">${(regionData.marketSize / 1e9).toFixed(1)}B</span>
                           </div>
                         )}
-                        {regionData.competitors && (
-                          <div className="flex justify-between">
-                            <span>竞争对手:</span>
-                            <span className="font-medium">{regionData.competitors}家</span>
-                          </div>
-                        )}
                       </div>
-                      
-                      {regionData.details && (
-                        <div className="mt-3 pt-3 border-t border-gray-200">
-                          <div className="text-xs text-gray-600 space-y-1">
-                            <div>人口: {(regionData.details.population / 1e6).toFixed(0)}M</div>
-                            <div>人均GDP: ${regionData.details.gdpPerCapita.toLocaleString()}</div>
-                            <div>互联网普及率: {regionData.details.internetPenetration}%</div>
-                            <div className="flex flex-wrap gap-1 mt-2">
-                              {regionData.details.mainProducts.map((product, idx) => (
-                                <span key={idx} className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
-                                  {product}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </Popup>
                 </GeoJSON>

@@ -112,7 +112,11 @@ export function ProductLineRevenue({
           value: subcategory.revenue,
           label: {
             show: true,
-            formatter: '{b}\n${c|,}M\n{d}%'
+            formatter: (params: any) => {
+              const valueInM = (params.value / 1e6).toFixed(1)
+              const percentage = ((params.value / totalRevenue) * 100).toFixed(1)
+              return `${params.name}\n$${valueInM}M\n${percentage}%`
+            }
           }
         })) || []
       }))
@@ -165,6 +169,9 @@ export function ProductLineRevenue({
       case 'pie':
         return {
           ...baseConfig,
+          xAxis: undefined,
+          yAxis: undefined,
+          grid: undefined,
           tooltip: {
             ...baseConfig.tooltip,
             formatter: (params: any) => {
@@ -278,6 +285,9 @@ export function ProductLineRevenue({
       case 'sunburst':
         return {
           ...baseConfig,
+          xAxis: undefined,
+          yAxis: undefined,
+          grid: undefined,
           tooltip: {
             ...baseConfig.tooltip,
             formatter: (params: any) => {
@@ -330,6 +340,9 @@ export function ProductLineRevenue({
       case 'treemap':
         return {
           ...baseConfig,
+          xAxis: undefined,
+          yAxis: undefined,
+          grid: undefined,
           tooltip: {
             ...baseConfig.tooltip,
             formatter: (params: any) => {
@@ -347,7 +360,10 @@ export function ProductLineRevenue({
             visibleMin: 300,
             label: {
               show: true,
-              formatter: '{b}\n${c|,}M'
+              formatter: (params: any) => {
+                const valueInM = (params.value / 1e6).toFixed(1)
+                return `${params.name}\n$${valueInM}M`
+              }
             },
             upperLabel: {
               show: true,
@@ -495,6 +511,8 @@ export function ProductLineRevenue({
           option={chartOption}
           style={{ height: `${height}px` }}
           opts={{ renderer: 'canvas' }}
+          notMerge={true}
+          lazyUpdate={true}
         />
       </div>
 

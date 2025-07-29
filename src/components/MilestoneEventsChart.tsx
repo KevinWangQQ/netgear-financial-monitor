@@ -204,11 +204,86 @@ export function MilestoneEventsChart({
         overflowX: isHorizontal ? 'auto' : 'hidden'
       }}>
         {sortedEvents.length > 0 ? (
-          <Timeline
-            mode={isHorizontal ? "top" : "left"}
-            items={timelineItems}
-            reverse={isHorizontal ? false : false}
-          />
+          isHorizontal ? (
+            // 自定义水平时间轴
+            <div className="relative h-full">
+              <div className="flex items-start p-4 gap-8" style={{ minWidth: `${sortedEvents.length * 280}px` }}>
+                {sortedEvents.map((event, index) => (
+                  <div key={event.id} className="relative flex flex-col items-center">
+                    {/* 时间线连接线 */}
+                    {index < sortedEvents.length - 1 && (
+                      <div 
+                        className="absolute top-8 left-12 w-20 h-0.5 bg-gray-300"
+                        style={{ zIndex: 1 }}
+                      />
+                    )}
+                    
+                    {/* 时间点标记 */}
+                    <div className="relative flex flex-col items-center mb-4">
+                      <div className="w-6 h-6 rounded-full bg-white border-4 flex items-center justify-center relative z-10"
+                           style={{ 
+                             borderColor: event.impact === 'positive' ? '#52c41a' : 
+                                         event.impact === 'negative' ? '#ff4d4f' : '#d9d9d9'
+                           }}>
+                        <div className="w-2 h-2 rounded-full"
+                             style={{ 
+                               backgroundColor: event.impact === 'positive' ? '#52c41a' : 
+                                              event.impact === 'negative' ? '#ff4d4f' : '#d9d9d9'
+                             }} />
+                      </div>
+                      <div className="text-xs text-gray-500 mt-2 whitespace-nowrap">
+                        {new Date(event.date).toLocaleDateString('zh-CN', { 
+                          year: 'numeric', 
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </div>
+                    </div>
+                    
+                    {/* 事件卡片 */}
+                    <Card 
+                      size="small" 
+                      className="w-64"
+                      style={{ 
+                        borderTop: `4px solid ${
+                          event.impact === 'positive' ? '#52c41a' : 
+                          event.impact === 'negative' ? '#ff4d4f' : '#d9d9d9'
+                        }`,
+                        backgroundColor: period && event.date.includes(period) ? '#f0f8ff' : 'white',
+                        minHeight: '120px'
+                      }}
+                    >
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between">
+                          <h4 className="text-sm font-semibold text-gray-900 leading-tight">
+                            {event.title}
+                          </h4>
+                          <Tag 
+                            color={getImpactColor(event.impact, event.impactLevel)}
+                            className="text-xs"
+                          >
+                            {getEventTypeName(event.type)}
+                          </Tag>
+                        </div>
+                        <p className="text-xs text-gray-600 leading-relaxed">
+                          {event.description}
+                        </p>
+                        <div className="text-xs text-gray-500">
+                          影响程度: {formatImpactLevel(event.impactLevel)}
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            // 垂直时间轴（原有实现）
+            <Timeline
+              mode="left"
+              items={timelineItems}
+            />
+          )
         ) : (
           <div className="flex items-center justify-center h-full text-gray-500">
             <div className="text-center">
