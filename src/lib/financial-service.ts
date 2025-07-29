@@ -343,7 +343,7 @@ class FinancialService {
         country: 'US', 
         percentage: 0.55,
         coordinates: [-95.7129, 37.0902] as [number, number],
-        marketSize: 12500, // 百万美元
+        marketSize: 12500000000, // 12.5B美元
         growth: 3.2
       },
       { 
@@ -351,7 +351,7 @@ class FinancialService {
         country: 'DE', 
         percentage: 0.28,
         coordinates: [10.4515, 51.1657] as [number, number],
-        marketSize: 8200,
+        marketSize: 8200000000, // 8.2B美元
         growth: 2.8
       },
       { 
@@ -359,7 +359,7 @@ class FinancialService {
         country: 'JP', 
         percentage: 0.17,
         coordinates: [138.2529, 36.2048] as [number, number],
-        marketSize: 5800,
+        marketSize: 5800000000, // 5.8B美元
         growth: 5.1
       }
     ]

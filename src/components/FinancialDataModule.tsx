@@ -44,6 +44,11 @@ interface KPIData {
     roa: { yoy: number; qoq: number }
     roe: { yoy: number; qoq: number }
   }
+  yearlyGrowth: {
+    revenue: { yoy: number; qoq: number }
+    grossProfitMargin: { yoy: number; qoq: number }
+    netProfitMargin: { yoy: number; qoq: number }
+  }
 }
 
 export function FinancialDataModule() {
@@ -101,6 +106,20 @@ export function FinancialDataModule() {
       const roaChanges = financialService.calculateMetricChanges(rawData, 'roa')
       const roeChanges = financialService.calculateMetricChanges(rawData, 'roe')
 
+      // 计算年度数据的同比增长
+      const previousYear = yearly[1] // 上一年度数据
+      const yearlyRevenueGrowth = previousYear && previousYear.totalRevenue > 0
+        ? ((currentYear.totalRevenue - previousYear.totalRevenue) / previousYear.totalRevenue) * 100
+        : currentYear.yearOverYearGrowth
+
+      const yearlyGrossProfitMarginGrowth = previousYear
+        ? currentYear.avgGrossProfitMargin - previousYear.avgGrossProfitMargin
+        : 0
+
+      const yearlyNetProfitMarginGrowth = previousYear
+        ? currentYear.avgNetProfitMargin - previousYear.avgNetProfitMargin
+        : 0
+
       const kpiResult: KPIData = {
         currentQuarter: {
           revenue: latestQuarter.revenue,
@@ -128,6 +147,12 @@ export function FinancialDataModule() {
           netProfitMargin: netProfitMarginChanges,
           roa: roaChanges,
           roe: roeChanges
+        },
+        // 年度对比数据
+        yearlyGrowth: {
+          revenue: { yoy: yearlyRevenueGrowth, qoq: 0 }, // 年度数据没有环比
+          grossProfitMargin: { yoy: yearlyGrossProfitMarginGrowth, qoq: 0 },
+          netProfitMargin: { yoy: yearlyNetProfitMarginGrowth, qoq: 0 }
         }
       }
 
@@ -174,6 +199,11 @@ export function FinancialDataModule() {
           netProfitMargin: { yoy: 1.8, qoq: 0.8 },
           roa: { yoy: 0.9, qoq: 0.3 },
           roe: { yoy: 1.2, qoq: 0.4 }
+        },
+        yearlyGrowth: {
+          revenue: { yoy: 8.5, qoq: 0 },
+          grossProfitMargin: { yoy: 2.1, qoq: 0 },
+          netProfitMargin: { yoy: 1.8, qoq: 0 }
         }
       })
       
@@ -297,9 +327,9 @@ export function FinancialDataModule() {
             title="年度营收"
             value={kpiData.currentYear.totalRevenue}
             unit=""
-            change={kpiData.currentYear.yearOverYearGrowth}
-            trend={kpiData.currentYear.yearOverYearGrowth > 0 ? 'up' : kpiData.currentYear.yearOverYearGrowth < 0 ? 'down' : 'neutral'}
-            description="同比增长"
+            yearOverYear={kpiData.yearlyGrowth.revenue.yoy}
+            trend={kpiData.yearlyGrowth.revenue.yoy > 0 ? 'up' : kpiData.yearlyGrowth.revenue.yoy < 0 ? 'down' : 'neutral'}
+            description="年度表现"
             period={`${kpiData.currentYear.year}年`}
           />
           
@@ -307,8 +337,9 @@ export function FinancialDataModule() {
             title="平均毛利率"
             value={kpiData.currentYear.avgGrossProfitMargin.toFixed(1)}
             unit="%"
+            yearOverYear={kpiData.yearlyGrowth.grossProfitMargin.yoy}
             trend={kpiData.currentYear.avgGrossProfitMargin > 25 ? 'up' : 'down'}
-            description="年度平均水平"
+            description="盈利能力"
             period={`${kpiData.currentYear.year}年`}
           />
           
@@ -316,8 +347,9 @@ export function FinancialDataModule() {
             title="平均净利率"
             value={kpiData.currentYear.avgNetProfitMargin.toFixed(1)}
             unit="%"
+            yearOverYear={kpiData.yearlyGrowth.netProfitMargin.yoy}
             trend={kpiData.currentYear.avgNetProfitMargin > 8 ? 'up' : 'down'}
-            description="年度平均水平"
+            description="盈利水平"
             period={`${kpiData.currentYear.year}年`}
           />
           
@@ -325,8 +357,9 @@ export function FinancialDataModule() {
             title="增长势头"
             value={kpiData.currentYear.yearOverYearGrowth.toFixed(1)}
             unit="%"
+            yearOverYear={kpiData.yearlyGrowth.revenue.yoy}
             trend={kpiData.currentYear.yearOverYearGrowth > 0 ? 'up' : kpiData.currentYear.yearOverYearGrowth < 0 ? 'down' : 'neutral'}
-            description="年度同比增长"
+            description="同比增长"
             period={`${kpiData.currentYear.year}年`}
           />
         </div>
@@ -414,46 +447,53 @@ export function FinancialDataModule() {
         />
       </motion.div>
 
-      {/* 产品线和地区分析 */}
+      {/* 产品线营收分析 */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
       >
-        <Row gutter={[16, 16]}>
-          <Col xs={24} lg={16}>
-            <ProductLineRevenue
-              data={prepareProductLineData()}
-              title="产品线营收分析"
-              height={450}
-              years={[2023, 2024, 2025]}
-              selectedYear={selectedProductYear}
-              onYearChange={setSelectedProductYear}
-              showControls={true}
-            />
-          </Col>
-          <Col xs={24} lg={8}>
-            <MilestoneEventsChart
-              events={enhancedData.length > 0 ? enhancedData[0].milestoneEvents.map(event => ({
-                ...event,
-                type: event.type === 'milestone' ? 'financial_milestone' : 
-                      event.type === 'product' ? 'product_launch' : 
-                      event.type === 'market' ? 'market_expansion' : 
-                      'strategic_partnership' as const
-              })) : []}
-              title="重要事件"
-              height={450}
-              period={enhancedData.length > 0 ? enhancedData[0].period : undefined}
-            />
-          </Col>
-        </Row>
+        <ProductLineRevenue
+          data={prepareProductLineData()}
+          title="产品线营收分析"
+          height={450}
+          years={[2023, 2024, 2025]}
+          selectedYear={selectedProductYear}
+          onYearChange={setSelectedProductYear}
+          showControls={true}
+        />
+      </motion.div>
+
+      {/* 重要事件时间轴 */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+      >
+        <MilestoneEventsChart
+          events={enhancedData.length > 0 ? enhancedData
+            .slice(0, 12) // 最近12个季度（3年）
+            .flatMap(item => item.milestoneEvents)
+            .map(event => ({
+              ...event,
+              type: event.type === 'milestone' ? 'financial_milestone' : 
+                    event.type === 'product' ? 'product_launch' : 
+                    event.type === 'market' ? 'market_expansion' : 
+                    'strategic_partnership' as const
+            }))
+            .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()) // 按时间排序
+          : []}
+          title="重要事件时间轴（最近三年）"
+          height={300}
+          isHorizontal={true}
+        />
       </motion.div>
       
       {/* 地区营收分布 */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
+        transition={{ delay: 0.6 }}
       >
         <GeographicChart
           data={geographicData}

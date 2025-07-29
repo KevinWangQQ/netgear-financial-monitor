@@ -181,17 +181,6 @@ export function UnifiedDashboard() {
                 更新时间: {formatDateTime(lastUpdated)}
               </div>
               
-              {/* 刷新按钮 - 只在竞争对比页面显示 */}
-              {selectedTab !== 0 && (
-                <button
-                  onClick={refreshData}
-                  disabled={isLoading}
-                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                >
-                  <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                  <span>刷新数据</span>
-                </button>
-              )}
               
               {/* 导出按钮 */}
               <button 

@@ -23,8 +23,8 @@ const TileLayer = dynamic(
   () => import('react-leaflet').then(mod => mod.TileLayer),
   { ssr: false }
 )
-const CircleMarker = dynamic(
-  () => import('react-leaflet').then(mod => mod.CircleMarker),
+const GeoJSON = dynamic(
+  () => import('react-leaflet').then(mod => mod.GeoJSON),
   { ssr: false }
 )
 const Popup = dynamic(
@@ -61,6 +61,40 @@ interface InteractiveMapProps {
   showLegend?: boolean
   showControls?: boolean
 }
+
+// 地理边界数据（简化的GeoJSON）
+const GEOGRAPHIC_BOUNDARIES = {
+  'North America': {
+    type: 'Feature',
+    properties: { name: 'North America', region: '北美' },
+    geometry: {
+      type: 'Polygon',
+      coordinates: [[
+        [-170, 20], [-60, 20], [-60, 75], [-170, 75], [-170, 20]
+      ]]
+    }
+  },
+  'Europe': {
+    type: 'Feature', 
+    properties: { name: 'Europe', region: '欧洲' },
+    geometry: {
+      type: 'Polygon',
+      coordinates: [[
+        [-10, 35], [40, 35], [40, 70], [-10, 70], [-10, 35]
+      ]]
+    }
+  },
+  'Asia Pacific': {
+    type: 'Feature',
+    properties: { name: 'Asia Pacific', region: '亚太' },
+    geometry: {
+      type: 'Polygon', 
+      coordinates: [[
+        [90, 10], [180, 10], [180, 60], [90, 60], [90, 10]
+      ]]
+    }
+  }
+};
 
 // 默认地图数据
 const DEFAULT_MAP_DATA: GeographicData[] = [
@@ -275,83 +309,100 @@ export function InteractiveMap({
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             
-            {data.map((item, index) => {
-              const markerInfo = getMarkerInfo(item)
+            {/* 渲染地理热区 */}
+            {Object.entries(GEOGRAPHIC_BOUNDARIES).map(([key, geoData]) => {
+              const regionData = data.find(item => 
+                (key === 'North America' && item.region === '北美') ||
+                (key === 'Europe' && item.region === '欧洲') ||
+                (key === 'Asia Pacific' && item.region === '亚太')
+              );
+              
+              if (!regionData) return null;
+              
+              const markerInfo = getMarkerInfo(regionData);
               
               return (
-                <CircleMarker
-                  key={index}
-                  center={item.coordinates}
-                  radius={markerInfo.size / 3}
-                  fillColor={markerInfo.color}
-                  color="white"
-                  weight={2}
-                  opacity={1}
-                  fillOpacity={0.7}
+                <GeoJSON
+                  key={key}
+                  data={geoData as any}
+                  style={{
+                    fillColor: markerInfo.color,
+                    weight: 2,
+                    opacity: 1,
+                    color: 'white',
+                    dashArray: '3',
+                    fillOpacity: 0.7
+                  }}
                   eventHandlers={{
-                    click: () => setSelectedRegion(item),
+                    click: () => setSelectedRegion(regionData),
                     mouseover: (e) => {
-                      e.target.setStyle({ fillOpacity: 0.9 })
+                      const layer = e.target;
+                      layer.setStyle({
+                        weight: 3,
+                        color: '#666',
+                        dashArray: '',
+                        fillOpacity: 0.9
+                      });
                     },
                     mouseout: (e) => {
-                      e.target.setStyle({ fillOpacity: 0.7 })
+                      const layer = e.target;
+                      layer.setStyle({
+                        weight: 2,
+                        opacity: 1,
+                        color: 'white',
+                        dashArray: '3',
+                        fillOpacity: 0.7
+                      });
                     }
                   }}
                 >
-                  <Tooltip>
-                    <div className="text-center">
-                      <div className="font-semibold">{item.region}</div>
-                      <div className="text-sm">{markerInfo.label} {markerInfo.unit}</div>
-                    </div>
-                  </Tooltip>
-                  
                   <Popup>
                     <div className="p-2 min-w-64">
                       <h4 className="font-semibold text-lg mb-2 flex items-center gap-2">
                         <MapPin className="w-4 h-4" />
-                        {item.region}
+                        {regionData.region}
                       </h4>
                       
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
                           <span>营收:</span>
-                          <span className="font-medium">${(item.revenue / 1e6).toFixed(1)}M</span>
+                          <span className="font-medium">${(regionData.revenue / 1e6).toFixed(1)}M</span>
                         </div>
                         <div className="flex justify-between">
                           <span>占比:</span>
-                          <span className="font-medium">{item.percentage.toFixed(1)}%</span>
+                          <span className="font-medium">{regionData.percentage.toFixed(1)}%</span>
                         </div>
                         <div className="flex justify-between">
                           <span>增长率:</span>
                           <span className={`font-medium flex items-center gap-1 ${
-                            item.growth >= 0 ? 'text-green-600' : 'text-red-600'
+                            regionData.growth >= 0 ? 'text-green-600' : 'text-red-600'
                           }`}>
-                            {item.growth >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                            {item.growth > 0 ? '+' : ''}{item.growth.toFixed(1)}%
+                            {regionData.growth >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                            {regionData.growth > 0 ? '+' : ''}{regionData.growth.toFixed(1)}%
                           </span>
                         </div>
-                        {item.marketSize && (
+                        {regionData.marketSize && (
                           <div className="flex justify-between">
                             <span>市场规模:</span>
-                            <span className="font-medium">${(item.marketSize / 1e9).toFixed(1)}B</span>
+                            <span className="font-medium">${(regionData.marketSize / 1e9).toFixed(1)}B</span>
                           </div>
                         )}
-                        {item.competitors && (
+                        {regionData.competitors && (
                           <div className="flex justify-between">
                             <span>竞争对手:</span>
-                            <span className="font-medium">{item.competitors}家</span>
+                            <span className="font-medium">{regionData.competitors}家</span>
                           </div>
                         )}
                       </div>
                       
-                      {item.details && (
+                      {regionData.details && (
                         <div className="mt-3 pt-3 border-t border-gray-200">
                           <div className="text-xs text-gray-600 space-y-1">
-                            <div>人口: {(item.details.population / 1e6).toFixed(0)}M</div>
-                            <div>人均GDP: ${item.details.gdpPerCapita.toLocaleString()}</div>
-                            <div>互联网普及率: {item.details.internetPenetration}%</div>
+                            <div>人口: {(regionData.details.population / 1e6).toFixed(0)}M</div>
+                            <div>人均GDP: ${regionData.details.gdpPerCapita.toLocaleString()}</div>
+                            <div>互联网普及率: {regionData.details.internetPenetration}%</div>
                             <div className="flex flex-wrap gap-1 mt-2">
-                              {item.details.mainProducts.map((product, idx) => (
+                              {regionData.details.mainProducts.map((product, idx) => (
                                 <span key={idx} className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">
                                   {product}
                                 </span>
@@ -362,8 +413,8 @@ export function InteractiveMap({
                       )}
                     </div>
                   </Popup>
-                </CircleMarker>
-              )
+                </GeoJSON>
+              );
             })}
           </MapContainer>
         </div>

@@ -31,13 +31,15 @@ interface MilestoneEventsChartProps {
   title?: string
   height?: number
   period?: string // 当前期间，用于高亮显示
+  isHorizontal?: boolean // 是否横向时间轴
 }
 
 export function MilestoneEventsChart({ 
   events, 
   title = "里程碑事件", 
   height = 400,
-  period 
+  period,
+  isHorizontal = false
 }: MilestoneEventsChartProps) {
   
   // 获取事件类型对应的图标
@@ -93,8 +95,12 @@ export function MilestoneEventsChart({
     return levels[level - 1] || '未知'
   }
 
-  // 排序事件（按日期倒序）
-  const sortedEvents = [...events].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  // 排序事件（横向时间轴按日期正序，纵向按日期倒序）
+  const sortedEvents = [...events].sort((a, b) => {
+    const timeA = new Date(a.date).getTime()
+    const timeB = new Date(b.date).getTime()
+    return isHorizontal ? timeA - timeB : timeB - timeA
+  })
 
   // 准备Timeline数据
   const timelineItems = sortedEvents.map(event => ({
@@ -102,13 +108,15 @@ export function MilestoneEventsChart({
     children: (
       <Card 
         size="small" 
-        className="mb-4"
+        className={isHorizontal ? "mb-2" : "mb-4"}
         style={{ 
-          borderLeft: `4px solid ${
+          [isHorizontal ? 'borderTop' : 'borderLeft']: `4px solid ${
             event.impact === 'positive' ? '#52c41a' : 
             event.impact === 'negative' ? '#ff4d4f' : '#d9d9d9'
           }`,
-          backgroundColor: period && event.date.includes(period) ? '#f0f8ff' : 'white'
+          backgroundColor: period && event.date.includes(period) ? '#f0f8ff' : 'white',
+          width: isHorizontal ? '250px' : 'auto',
+          minHeight: isHorizontal ? '150px' : 'auto'
         }}
       >
         <div className="flex justify-between items-start mb-2">
@@ -190,11 +198,16 @@ export function MilestoneEventsChart({
       }
       className="w-full"
     >
-      <div style={{ height: `${height}px`, overflowY: 'auto' }}>
+      <div style={{ 
+        height: `${height}px`, 
+        overflowY: isHorizontal ? 'hidden' : 'auto',
+        overflowX: isHorizontal ? 'auto' : 'hidden'
+      }}>
         {sortedEvents.length > 0 ? (
           <Timeline
-            mode="left"
+            mode={isHorizontal ? "top" : "left"}
             items={timelineItems}
+            reverse={isHorizontal ? false : false}
           />
         ) : (
           <div className="flex items-center justify-center h-full text-gray-500">
