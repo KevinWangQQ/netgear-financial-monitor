@@ -45,7 +45,8 @@ export function GeographicChart({ data, title, height = 400 }: GeographicChartPr
       revenue: item.revenue,
       percentage: item.percentage,
       growth: item.growth,
-      coordinates: item.coordinates || [0, 0] as [number, number]
+      coordinates: item.coordinates || [0, 0] as [number, number],
+      marketSize: item.marketSize // 确保传递市场规模数据
     }))
 
     return (

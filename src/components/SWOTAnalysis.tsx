@@ -58,7 +58,7 @@ export function SWOTAnalysis({
       low: { color: 'green', text: '低' }
     }
     const config = configs[impact as keyof typeof configs] || { color: 'default', text: '未知' }
-    return <Tag color={config.color} size="small">{config.text}</Tag>
+    return <Tag color={config.color}>{config.text}</Tag>
   }
 
   // 计算SWOT评分
@@ -242,7 +242,7 @@ export function SWOTAnalysis({
                         {getImpactTag(item.impact)}
                       </div>
                       {item.category && (
-                        <Tag size="small" color="blue">{item.category}</Tag>
+                        <Tag color="blue">{item.category}</Tag>
                       )}
                     </div>
                   ))

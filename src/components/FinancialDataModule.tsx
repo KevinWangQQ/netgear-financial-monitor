@@ -37,6 +37,13 @@ interface KPIData {
     revenueGrowth: number
     profitabilityChange: number
   }
+  detailedGrowth: {
+    revenue: { yoy: number; qoq: number }
+    grossProfitMargin: { yoy: number; qoq: number }
+    netProfitMargin: { yoy: number; qoq: number }
+    roa: { yoy: number; qoq: number }
+    roe: { yoy: number; qoq: number }
+  }
 }
 
 export function FinancialDataModule() {
@@ -87,14 +94,12 @@ export function FinancialDataModule() {
       const latestQuarter = rawData[0] // 最新季度
       const previousQuarter = rawData[1] // 上一季度
 
-      // 计算季度环比增长
-      const quarterlyRevenueGrowth = previousQuarter && previousQuarter.revenue > 0
-        ? ((latestQuarter.revenue - previousQuarter.revenue) / previousQuarter.revenue) * 100
-        : 0
-
-      const profitabilityChange = previousQuarter
-        ? latestQuarter.netProfitMargin - previousQuarter.netProfitMargin
-        : 0
+      // 使用新的精确增长率计算方法
+      const revenueGrowth = financialService.calculateGrowthMetrics(rawData)
+      const grossProfitMarginChanges = financialService.calculateMetricChanges(rawData, 'grossProfitMargin')
+      const netProfitMarginChanges = financialService.calculateMetricChanges(rawData, 'netProfitMargin')
+      const roaChanges = financialService.calculateMetricChanges(rawData, 'roa')
+      const roeChanges = financialService.calculateMetricChanges(rawData, 'roe')
 
       const kpiResult: KPIData = {
         currentQuarter: {
@@ -113,8 +118,16 @@ export function FinancialDataModule() {
           year: currentYear.year
         },
         quarterOverQuarter: {
-          revenueGrowth: quarterlyRevenueGrowth,
-          profitabilityChange: profitabilityChange
+          revenueGrowth: revenueGrowth.qoq,
+          profitabilityChange: netProfitMarginChanges.qoq
+        },
+        // 新增详细的增长数据
+        detailedGrowth: {
+          revenue: revenueGrowth,
+          grossProfitMargin: grossProfitMarginChanges,
+          netProfitMargin: netProfitMarginChanges,
+          roa: roaChanges,
+          roe: roeChanges
         }
       }
 
@@ -154,6 +167,13 @@ export function FinancialDataModule() {
         quarterOverQuarter: {
           revenueGrowth: 3.2,
           profitabilityChange: 0.8
+        },
+        detailedGrowth: {
+          revenue: { yoy: 8.5, qoq: 3.2 },
+          grossProfitMargin: { yoy: 2.1, qoq: 0.5 },
+          netProfitMargin: { yoy: 1.8, qoq: 0.8 },
+          roa: { yoy: 0.9, qoq: 0.3 },
+          roe: { yoy: 1.2, qoq: 0.4 }
         }
       })
       
@@ -330,9 +350,10 @@ export function FinancialDataModule() {
             title="季度营收"
             value={kpiData.currentQuarter.revenue}
             unit=""
-            change={kpiData.quarterOverQuarter.revenueGrowth}
-            trend={kpiData.quarterOverQuarter.revenueGrowth > 0 ? 'up' : kpiData.quarterOverQuarter.revenueGrowth < 0 ? 'down' : 'neutral'}
-            description="环比增长"
+            yearOverYear={kpiData.detailedGrowth.revenue.yoy}
+            quarterOverQuarter={kpiData.detailedGrowth.revenue.qoq}
+            trend={kpiData.detailedGrowth.revenue.qoq > 0 ? 'up' : kpiData.detailedGrowth.revenue.qoq < 0 ? 'down' : 'neutral'}
+            description="收入规模"
             period={kpiData.currentQuarter.period}
           />
           
@@ -340,9 +361,10 @@ export function FinancialDataModule() {
             title="毛利率"
             value={kpiData.currentQuarter.grossProfitMargin.toFixed(1)}
             unit="%"
-            change={kpiData.quarterOverQuarter.profitabilityChange}
+            yearOverYear={kpiData.detailedGrowth.grossProfitMargin.yoy}
+            quarterOverQuarter={kpiData.detailedGrowth.grossProfitMargin.qoq}
             trend={kpiData.currentQuarter.grossProfitMargin > 25 ? 'up' : 'down'}
-            description="季度表现"
+            description="盈利能力"
             period={kpiData.currentQuarter.period}
           />
           
@@ -350,8 +372,10 @@ export function FinancialDataModule() {
             title="净利率"
             value={kpiData.currentQuarter.netProfitMargin.toFixed(1)}
             unit="%"
+            yearOverYear={kpiData.detailedGrowth.netProfitMargin.yoy}
+            quarterOverQuarter={kpiData.detailedGrowth.netProfitMargin.qoq}
             trend={kpiData.currentQuarter.netProfitMargin > 8 ? 'up' : 'down'}
-            description="季度表现"
+            description="净利水平"
             period={kpiData.currentQuarter.period}
           />
           
@@ -359,6 +383,8 @@ export function FinancialDataModule() {
             title="资产回报率"  
             value={kpiData.currentQuarter.roa.toFixed(1)}
             unit="%"
+            yearOverYear={kpiData.detailedGrowth.roa.yoy}
+            quarterOverQuarter={kpiData.detailedGrowth.roa.qoq}
             trend={kpiData.currentQuarter.roa > 5 ? 'up' : 'down'}
             description="ROA表现"
             period={kpiData.currentQuarter.period}

@@ -307,19 +307,3 @@ export interface FinancialAnalysisReport {
   }[]
 }
 
-// 导出所有类型
-export type {
-  BaseFinancialData,
-  SoftwareMetrics,
-  OperationalMetrics,
-  FinancialEvent,
-  EnhancedFinancialData,
-  ProductLineRevenue,
-  ProductHierarchy,
-  EnhancedGeographicData,
-  DataTurningPoint,
-  CompetitorData,
-  CashFlowAnalysis,
-  BalanceSheetAnalysis,
-  FinancialAnalysisReport
-}

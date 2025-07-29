@@ -40,7 +40,9 @@ export function UnifiedDashboard() {
   // 客户端挂载标识
   useEffect(() => {
     setIsClient(true)
-    setLastUpdated(new Date())
+    if (typeof window !== 'undefined') {
+      setLastUpdated(new Date())
+    }
   }, [])
 
   // 标签页配置
@@ -77,17 +79,21 @@ export function UnifiedDashboard() {
 
   // 格式化日期时间，确保客户端和服务器端一致
   const formatDateTime = (date: Date | null): string => {
-    if (!date || !isClient) return '--'
+    if (!date) return '--'
     
-    // 使用固定格式避免本地化差异
-    const year = date.getFullYear()
-    const month = String(date.getMonth() + 1).padStart(2, '0')
-    const day = String(date.getDate()).padStart(2, '0')
-    const hours = String(date.getHours()).padStart(2, '0')
-    const minutes = String(date.getMinutes()).padStart(2, '0')
-    const seconds = String(date.getSeconds()).padStart(2, '0')
-    
-    return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`
+    // 在服务器端和客户端都使用相同的格式
+    try {
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      const hours = String(date.getHours()).padStart(2, '0')
+      const minutes = String(date.getMinutes()).padStart(2, '0')
+      const seconds = String(date.getSeconds()).padStart(2, '0')
+      
+      return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`
+    } catch {
+      return '--'
+    }
   }
 
   // 导出财务数据为CSV

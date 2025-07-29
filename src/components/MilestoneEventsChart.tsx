@@ -141,7 +141,7 @@ export function MilestoneEventsChart({
             <span className="text-xs text-gray-500 mr-2">相关指标:</span>
             <Space size={[0, 4]} wrap>
               {event.relatedMetrics.map(metric => (
-                <Tag key={metric} size="small" color="blue">
+                <Tag key={metric} color="blue">
                   {metric}
                 </Tag>
               ))}
