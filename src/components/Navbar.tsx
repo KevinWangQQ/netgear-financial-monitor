@@ -15,18 +15,6 @@ export function Navbar() {
       active: pathname === '/'
     },
     {
-      name: '营收分析',
-      href: '/revenue',
-      icon: TrendingUp,
-      active: pathname === '/revenue'
-    },
-    {
-      name: '竞争对比',
-      href: '/competition',
-      icon: Users,
-      active: pathname === '/competition'
-    },
-    {
       name: '产品分析',
       href: '/product',
       icon: Package,

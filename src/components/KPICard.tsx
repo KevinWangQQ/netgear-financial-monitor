@@ -1,6 +1,7 @@
 'use client'
 
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { Card, Statistic, Tooltip } from 'antd'
+import { ArrowUpOutlined, ArrowDownOutlined, MinusOutlined, QuestionCircleOutlined } from '@ant-design/icons'
 import { MetricTooltip, HelpIcon } from './MetricTooltip'
 
 interface KPICardProps {
@@ -43,54 +44,76 @@ export function KPICard({
   const getTrendIcon = () => {
     switch (trend) {
       case 'up':
-        return <TrendingUp className="h-4 w-4 text-green-500" />
+        return <ArrowUpOutlined style={{ color: '#52c41a' }} />
       case 'down':
-        return <TrendingDown className="h-4 w-4 text-red-500" />
+        return <ArrowDownOutlined style={{ color: '#ff4d4f' }} />
       default:
-        return <Minus className="h-4 w-4 text-gray-400" />
+        return <MinusOutlined style={{ color: '#d9d9d9' }} />
     }
-  }
-
-  const getTrendColor = () => {
-    if (changeType === 'increase') {
-      return 'text-green-500'
-    } else if (changeType === 'decrease') {
-      return 'text-red-500'
-    }
-    return 'text-gray-400'
   }
 
   const getTrendIconByChange = () => {
     if (changeType === 'increase') {
-      return <TrendingUp className="h-4 w-4 text-green-500" />
+      return <ArrowUpOutlined style={{ color: '#52c41a' }} />
     } else if (changeType === 'decrease') {
-      return <TrendingDown className="h-4 w-4 text-red-500" />
+      return <ArrowDownOutlined style={{ color: '#ff4d4f' }} />
     }
-    return <Minus className="h-4 w-4 text-gray-400" />
+    return <MinusOutlined style={{ color: '#d9d9d9' }} />
+  }
+
+  const getStatisticValueStyle = () => {
+    if (changeType === 'increase') {
+      return { color: '#52c41a' }
+    } else if (changeType === 'decrease') {
+      return { color: '#ff4d4f' }
+    }
+    return { color: '#262626' }
   }
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+    <Card
+      size="small"
+      className="hover:shadow-md transition-shadow"
+      style={{ height: '100%' }}
+    >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <h3 className="text-sm font-medium text-gray-600">{title}</h3>
-          {metricId && <HelpIcon metricId={metricId} />}
+          <span className="text-sm font-medium text-gray-600">{title}</span>
+          {metricId && (
+            <Tooltip title="点击查看指标说明">
+              <QuestionCircleOutlined className="text-gray-400 hover:text-gray-600" />
+            </Tooltip>
+          )}
         </div>
         {change !== undefined ? getTrendIconByChange() : getTrendIcon()}
       </div>
       
-      <div className="flex items-end space-x-2 mb-1">
-        <span className="text-2xl font-bold text-gray-900">
-          {formatValue(value)}{unit}
-        </span>
-        {change !== undefined && (
-          <span className={`text-sm font-medium ${getTrendColor()}`}>
-            {change > 0 ? '+' : ''}{change.toFixed(1)}%
-          </span>
-        )}
-      </div>
+      <Statistic
+        value={formatValue(value)}
+        suffix={unit}
+        valueStyle={{ 
+          fontSize: '24px', 
+          fontWeight: 'bold',
+          ...getStatisticValueStyle()
+        }}
+      />
       
-      <div className="flex items-center justify-between">
+      {change !== undefined && (
+        <div className="mt-2">
+          <Statistic
+            value={Math.abs(change)}
+            precision={1}
+            prefix={change >= 0 ? '+' : '-'}
+            suffix="%"
+            valueStyle={{ 
+              fontSize: '14px',
+              color: change >= 0 ? '#52c41a' : '#ff4d4f'
+            }}
+          />
+        </div>
+      )}
+      
+      <div className="flex items-center justify-between mt-3">
         {description && (
           <p className="text-xs text-gray-500 flex-1">{description}</p>
         )}
@@ -98,6 +121,6 @@ export function KPICard({
           <span className="text-xs text-gray-400 ml-2">{period}</span>
         )}
       </div>
-    </div>
+    </Card>
   )
 }

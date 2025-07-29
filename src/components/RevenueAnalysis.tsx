@@ -1,11 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Card, Segmented, Alert, Row, Col, Statistic, Timeline } from 'antd'
+import { CalendarOutlined, DollarOutlined, RiseOutlined, BarChartOutlined } from '@ant-design/icons'
 import { MultiViewChart } from './MultiViewChart'
 import { GeographicChart } from './GeographicChart'
 import { RevenueTrendChart } from './revenue/RevenueTrendChart'
 import { ProfitabilityAnalysis } from './revenue/ProfitabilityAnalysis'
 import { ProductLineRevenue } from './revenue/ProductLineRevenue'
+import { MilestoneEventsChart } from './MilestoneEventsChart'
 import { financialService, ProcessedFinancialData, YearlyFinancialData, GeographicData } from '@/lib/financial-service'
 import { EnhancedFinancialData } from '@/types/financial'
 
@@ -165,14 +168,13 @@ export function RevenueAnalysis() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Row gutter={[16, 16]}>
           {[...Array(4)].map((_, index) => (
-            <div key={index} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 animate-pulse">
-              <div className="h-6 bg-gray-200 rounded mb-4"></div>
-              <div className="h-64 bg-gray-200 rounded"></div>
-            </div>
+            <Col key={index} xs={24} lg={12}>
+              <Card loading style={{ height: '300px' }} />
+            </Col>
           ))}
-        </div>
+        </Row>
       </div>
     )
   }
@@ -180,37 +182,32 @@ export function RevenueAnalysis() {
   return (
     <div className="space-y-6">
       {error && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <p className="text-yellow-800 text-sm">{error}</p>
-        </div>
+        <Alert
+          message="数据加载警告"
+          description={error}
+          type="warning"
+          showIcon
+          closable
+        />
       )}
 
       {/* 视图模式切换 */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">营收分析</h1>
-        <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
-          <button
-            onClick={() => setViewMode('yearly')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              viewMode === 'yearly'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            年度视图
-          </button>
-          <button
-            onClick={() => setViewMode('quarterly')}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              viewMode === 'quarterly'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            季度视图
-          </button>
+      <Card>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <BarChartOutlined />
+            营收分析
+          </h1>
+          <Segmented
+            value={viewMode}
+            onChange={(value) => setViewMode(value as 'quarterly' | 'yearly')}
+            options={[
+              { label: '年度视图', value: 'yearly', icon: <CalendarOutlined /> },
+              { label: '季度视图', value: 'quarterly', icon: <RiseOutlined /> }
+            ]}
+          />
         </div>
-      </div>
+      </Card>
 
       {/* 营收趋势分析 - 使用增强组件 */}
       <div className="space-y-6">
@@ -219,6 +216,7 @@ export function RevenueAnalysis() {
           title="营收趋势分析"
           height={400}
           showControls={true}
+          viewType={viewMode}
         />
         
         <ProfitabilityAnalysis
@@ -230,83 +228,112 @@ export function RevenueAnalysis() {
       </div>
 
       {/* 关键财务指标总览 */}
-      <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">
-          {viewMode === 'yearly' ? '年度' : '季度'}关键指标
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <Card 
+        title={
+          <span className="flex items-center gap-2">
+            <DollarOutlined />
+            {viewMode === 'yearly' ? '年度' : '季度'}关键指标
+          </span>
+        }
+      >
+        <Row gutter={[16, 16]}>
           {(viewMode === 'yearly' ? yearlyData[0] : quarterlyData[0]) && (
             <>
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <div className="text-sm font-medium text-gray-700">
-                  {viewMode === 'yearly' ? '年度营收' : '季度营收'}
-                </div>
-                <div className="text-2xl font-bold text-blue-600">
-                  ${viewMode === 'yearly' 
-                    ? (yearlyData[0].totalRevenue / 1e9).toFixed(2) + 'B'
-                    : (quarterlyData[0].revenue / 1e6).toFixed(0) + 'M'
-                  }
-                </div>
-                <div className="text-sm text-gray-600">
-                  {viewMode === 'yearly' 
-                    ? `同比增长 ${yearlyData[0].yearOverYearGrowth.toFixed(1)}%`
-                    : `环比增长 ${quarterlyData[1] ? (((quarterlyData[0].revenue - quarterlyData[1].revenue) / quarterlyData[1].revenue) * 100).toFixed(1) : '0.0'}%`
-                  }
-                </div>
-              </div>
+              <Col xs={24} sm={12} lg={6}>
+                <Card className="text-center" style={{ backgroundColor: '#f0f8ff' }}>
+                  <Statistic
+                    title={viewMode === 'yearly' ? '年度营收' : '季度营收'}
+                    value={viewMode === 'yearly' 
+                      ? (yearlyData[0].totalRevenue / 1e9).toFixed(2)
+                      : (quarterlyData[0].revenue / 1e6).toFixed(0)
+                    }
+                    suffix={viewMode === 'yearly' ? 'B' : 'M'}
+                    prefix="$"
+                    valueStyle={{ color: '#1890ff' }}
+                  />
+                  <div className="text-sm text-gray-600 mt-2">
+                    {viewMode === 'yearly' 
+                      ? `同比增长 ${yearlyData[0].yearOverYearGrowth.toFixed(1)}%`
+                      : `环比增长 ${quarterlyData[1] ? (((quarterlyData[0].revenue - quarterlyData[1].revenue) / quarterlyData[1].revenue) * 100).toFixed(1) : '0.0'}%`
+                    }
+                  </div>
+                </Card>
+              </Col>
               
-              <div className="p-4 bg-green-50 rounded-lg">
-                <div className="text-sm font-medium text-gray-700">平均毛利率</div>
-                <div className="text-2xl font-bold text-green-600">
-                  {viewMode === 'yearly' 
-                    ? yearlyData[0].avgGrossProfitMargin.toFixed(1)
-                    : quarterlyData[0].grossProfitMargin.toFixed(1)
-                  }%
-                </div>
-                <div className="text-sm text-gray-600">毛利润占营收比例</div>
-              </div>
+              <Col xs={24} sm={12} lg={6}>
+                <Card className="text-center" style={{ backgroundColor: '#f6ffed' }}>
+                  <Statistic
+                    title="平均毛利率"
+                    value={viewMode === 'yearly' 
+                      ? yearlyData[0].avgGrossProfitMargin.toFixed(1)
+                      : quarterlyData[0].grossProfitMargin.toFixed(1)
+                    }
+                    suffix="%"
+                    valueStyle={{ color: '#52c41a' }}
+                  />
+                  <div className="text-sm text-gray-600 mt-2">毛利润占营收比例</div>
+                </Card>
+              </Col>
               
-              <div className="p-4 bg-yellow-50 rounded-lg">
-                <div className="text-sm font-medium text-gray-700">平均净利率</div>
-                <div className="text-2xl font-bold text-yellow-600">
-                  {viewMode === 'yearly' 
-                    ? yearlyData[0].avgNetProfitMargin.toFixed(1)
-                    : quarterlyData[0].netProfitMargin.toFixed(1)
-                  }%
-                </div>
-                <div className="text-sm text-gray-600">净利润占营收比例</div>
-              </div>
+              <Col xs={24} sm={12} lg={6}>
+                <Card className="text-center" style={{ backgroundColor: '#fffbe6' }}>
+                  <Statistic
+                    title="平均净利率"
+                    value={viewMode === 'yearly' 
+                      ? yearlyData[0].avgNetProfitMargin.toFixed(1)
+                      : quarterlyData[0].netProfitMargin.toFixed(1)
+                    }
+                    suffix="%"
+                    valueStyle={{ color: '#faad14' }}
+                  />
+                  <div className="text-sm text-gray-600 mt-2">净利润占营收比例</div>
+                </Card>
+              </Col>
               
-              <div className="p-4 bg-purple-50 rounded-lg">
-                <div className="text-sm font-medium text-gray-700">资产回报率</div>
-                <div className="text-2xl font-bold text-purple-600">
-                  {quarterlyData[0].roa.toFixed(1)}%
-                </div>
-                <div className="text-sm text-gray-600">ROA</div>
-              </div>
+              <Col xs={24} sm={12} lg={6}>
+                <Card className="text-center" style={{ backgroundColor: '#f9f0ff' }}>
+                  <Statistic
+                    title="资产回报率"
+                    value={quarterlyData[0].roa.toFixed(1)}
+                    suffix="%"
+                    valueStyle={{ color: '#722ed1' }}
+                  />
+                  <div className="text-sm text-gray-600 mt-2">ROA</div>
+                </Card>
+              </Col>
             </>
           )}
-        </div>
-      </div>
+        </Row>
+      </Card>
 
       {/* 产品线和地区分析 */}
-      <div className="space-y-6">
-        <ProductLineRevenue
-          data={prepareProductLineData()}
-          title="产品线营收分析"
-          height={450}
-          years={[2023, 2024, 2025]}
-          selectedYear={selectedProductYear}
-          onYearChange={setSelectedProductYear}
-          showControls={true}
-        />
-        
-        <GeographicChart
-          data={geographicData}
-          title="地区营收分布"
-          height={300}
-        />
-      </div>
+      <Row gutter={[16, 16]}>
+        <Col xs={24} lg={16}>
+          <ProductLineRevenue
+            data={prepareProductLineData()}
+            title="产品线营收分析"
+            height={450}
+            years={[2023, 2024, 2025]}
+            selectedYear={selectedProductYear}
+            onYearChange={setSelectedProductYear}
+            showControls={true}
+          />
+        </Col>
+        <Col xs={24} lg={8}>
+          <MilestoneEventsChart
+            events={enhancedData.length > 0 ? enhancedData[0].milestoneEvents : []}
+            title="重要事件"
+            height={450}
+            period={enhancedData.length > 0 ? enhancedData[0].period : undefined}
+          />
+        </Col>
+      </Row>
+      
+      <GeographicChart
+        data={geographicData}
+        title="地区营收分布"
+        height={300}
+      />
     </div>
   )
 }

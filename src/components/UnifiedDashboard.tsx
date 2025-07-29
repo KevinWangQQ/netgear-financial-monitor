@@ -16,8 +16,7 @@ import { Tab } from '@headlessui/react'
 import { toast } from 'react-hot-toast'
 
 // 导入现有组件
-import { DashboardOverview } from './DashboardOverview'
-import { RevenueAnalysis } from './RevenueAnalysis'
+import { FinancialDataModule } from './FinancialDataModule'
 import { CompetitionAnalysis } from './CompetitionAnalysis'
 import { KPICard } from './KPICard'
 
@@ -36,7 +35,6 @@ export function UnifiedDashboard() {
   const [selectedTab, setSelectedTab] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
-  const [financialData, setFinancialData] = useState<ProcessedFinancialData[]>([])
   const [isClient, setIsClient] = useState(false)
 
   // 客户端挂载标识
@@ -48,18 +46,11 @@ export function UnifiedDashboard() {
   // 标签页配置
   const tabs: TabConfig[] = [
     {
-      id: 'overview',
-      name: '财务概览',
+      id: 'financial',
+      name: '财务数据',
       icon: <BarChart3 className="w-4 h-4" />,
-      component: <DashboardOverview />,
+      component: <FinancialDataModule />,
       color: 'blue'
-    },
-    {
-      id: 'revenue',
-      name: '营收分析',
-      icon: <TrendingUp className="w-4 h-4" />,
-      component: <RevenueAnalysis />,
-      color: 'green'
     },
     {
       id: 'competition',
@@ -70,27 +61,19 @@ export function UnifiedDashboard() {
     }
   ]
 
-  // 获取财务数据
-  const fetchFinancialData = async () => {
+  // 刷新数据
+  const refreshData = async () => {
     setIsLoading(true)
     try {
-      // 这里使用模拟数据，实际项目中会调用真实API
-      const data = financialService.generateMockData()
-      setFinancialData(data)
       setLastUpdated(new Date())
       toast.success('数据更新成功')
     } catch (error) {
-      console.error('获取财务数据失败:', error)
+      console.error('刷新数据失败:', error)
       toast.error('数据更新失败')
     } finally {
       setIsLoading(false)
     }
   }
-
-  // 组件加载时获取数据
-  useEffect(() => {
-    fetchFinancialData()
-  }, [])
 
   // 格式化日期时间，确保客户端和服务器端一致
   const formatDateTime = (date: Date | null): string => {
@@ -107,59 +90,6 @@ export function UnifiedDashboard() {
     return `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`
   }
 
-  // 计算关键指标
-  const latestData = financialData[0]
-  const previousData = financialData[1]
-
-  const kpiData = latestData ? [
-    {
-      title: '总营收',
-      value: `$${(latestData.revenue / 1e6).toFixed(1)}M`,
-      change: previousData ? 
-        parseFloat(((latestData.revenue - previousData.revenue) / previousData.revenue * 100).toFixed(1)) : 
-        0,
-      changeType: 'increase' as const,
-      period: `${latestData.period}`,
-      description: '季度总营收规模',
-      metricId: 'revenue'
-    },
-    {
-      title: '毛利率',
-      value: `${latestData.grossProfitMargin.toFixed(1)}%`,
-      change: previousData ? 
-        parseFloat((latestData.grossProfitMargin - previousData.grossProfitMargin).toFixed(1)) : 
-        0,
-      changeType: latestData.grossProfitMargin > (previousData?.grossProfitMargin || 0) ? 
-        'increase' as const : 'decrease' as const,
-      period: `${latestData.period}`,
-      description: '销售毛利润率',
-      metricId: 'grossProfitMargin'
-    },
-    {
-      title: '净利率',
-      value: `${latestData.netProfitMargin.toFixed(1)}%`,
-      change: previousData ? 
-        parseFloat((latestData.netProfitMargin - previousData.netProfitMargin).toFixed(1)) : 
-        0,
-      changeType: latestData.netProfitMargin > (previousData?.netProfitMargin || 0) ? 
-        'increase' as const : 'decrease' as const,
-      period: `${latestData.period}`,
-      description: '净利润率水平',
-      metricId: 'netProfitMargin'
-    },
-    {
-      title: 'ROA',
-      value: `${latestData.roa.toFixed(1)}%`,
-      change: previousData ? 
-        parseFloat((latestData.roa - previousData.roa).toFixed(1)) : 
-        0,
-      changeType: latestData.roa > (previousData?.roa || 0) ? 
-        'increase' as const : 'decrease' as const,
-      period: `${latestData.period}`,
-      description: '资产收益率',
-      metricId: 'roa'
-    }
-  ] : []
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -172,7 +102,7 @@ export function UnifiedDashboard() {
                 Netgear 财务分析平台
               </h1>
               <p className="mt-2 text-gray-600">
-                实时监控财务表现 · 智能分析竞争态势 · 数据驱动决策
+                统一财务分析平台 · 智能竞争对比 · 数据驱动决策
               </p>
             </div>
             
@@ -185,7 +115,7 @@ export function UnifiedDashboard() {
               
               {/* 刷新按钮 */}
               <button
-                onClick={fetchFinancialData}
+                onClick={refreshData}
                 disabled={isLoading}
                 className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
@@ -203,23 +133,6 @@ export function UnifiedDashboard() {
         </div>
       </div>
 
-      {/* KPI 卡片区域 */}
-      {kpiData.length > 0 && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {kpiData.map((kpi, index) => (
-              <motion.div
-                key={kpi.title}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <KPICard {...kpi} />
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* 主要内容区域 */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">

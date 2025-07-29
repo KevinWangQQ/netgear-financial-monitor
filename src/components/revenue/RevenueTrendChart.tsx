@@ -76,6 +76,7 @@ export function RevenueTrendChart({
 
   // 准备图表配置
   const chartOption = useMemo((): EChartsOption => {
+    // 季度视图：显示完整的季度信息
     const periods = data.map(d => d.period)
     
     // 构建数据系列
@@ -86,7 +87,7 @@ export function RevenueTrendChart({
       
       const values = data.map(d => {
         const value = d[seriesConfig.key as keyof RevenueTrendData] as number
-        return Math.round((value || 0) / 1e6) // 转换为百万，确保不是NaN
+        return Math.round((value || 0) / 1e6) // 转换为百万
       })
       
       if (chartType === 'combo') {
@@ -165,11 +166,13 @@ export function RevenueTrendChart({
         
         // 识别显著变化点（增长率变化超过10%）
         if (Math.abs(growth) > 15) {
+          const yValue = Math.round(currentRevenue / 1e6)
+          
           return {
             name: '转折点',
             type: 'scatter',
             data: [{
-              value: [index, Math.round(currentRevenue / 1e6)],
+              value: [index, yValue],
               symbol: 'pin',
               symbolSize: 20,
               itemStyle: {
