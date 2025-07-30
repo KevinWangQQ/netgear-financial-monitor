@@ -27,8 +27,8 @@ const ReactECharts = dynamic(() => import('echarts-for-react'), {
 interface ProductData {
   name: string
   revenue: number
-  profitMargin: number
-  growth: number
+  profitMargin?: number
+  growth?: number
   children?: ProductData[]
 }
 
@@ -92,8 +92,8 @@ export function ProductLineRevenue({
         children: category.children?.map(subcategory => ({
           name: subcategory.name,
           value: subcategory.revenue,
-          growth: subcategory.growth,
-          profitMargin: subcategory.profitMargin,
+          growth: subcategory.growth || 0,
+          profitMargin: subcategory.profitMargin || 0,
           itemStyle: {
             color: getProductColor(subcategory.name)
           }
@@ -123,21 +123,23 @@ export function ProductLineRevenue({
     } else {
       // 饼图和柱状图数据
       const flatData = data.flatMap(category => 
-        category.children?.map(subcategory => ({
-          name: subcategory.name,
-          value: Math.round(subcategory.revenue / 1e6), // 转换为百万
-          category: category.name,
-          growth: subcategory.growth,
-          profitMargin: subcategory.profitMargin,
-          percentage: (subcategory.revenue / totalRevenue * 100)
-        })) || [{
-          name: category.name,
-          value: Math.round(category.revenue / 1e6),
-          category: '主要分类',
-          growth: category.growth,
-          profitMargin: category.profitMargin,
-          percentage: (category.revenue / totalRevenue * 100)
-        }]
+        category.children && category.children.length > 0 
+          ? category.children.map(subcategory => ({
+              name: subcategory.name,
+              value: Math.round(subcategory.revenue / 1e6), // 转换为百万
+              category: category.name,
+              growth: subcategory.growth || 0,
+              profitMargin: subcategory.profitMargin || 0,
+              percentage: (subcategory.revenue / totalRevenue * 100)
+            }))
+          : [{
+              name: category.name,
+              value: Math.round(category.revenue / 1e6),
+              category: '主要分类',
+              growth: category.growth || 0,
+              profitMargin: category.profitMargin || 0,
+              percentage: (category.revenue / totalRevenue * 100)
+            }]
       )
       return selectedCategory ? 
         flatData.filter(item => item.category === selectedCategory) : 
@@ -586,18 +588,18 @@ export function ProductLineRevenue({
                         </td>
                         <td className="px-4 py-2 text-sm">
                           <div className={`flex items-center space-x-1 ${
-                            product.growth >= 0 ? 'text-green-600' : 'text-red-600'
+                            (product.growth || 0) >= 0 ? 'text-green-600' : 'text-red-600'
                           }`}>
-                            {product.growth >= 0 ? (
+                            {(product.growth || 0) >= 0 ? (
                               <TrendingUp className="w-3 h-3" />
                             ) : (
                               <TrendingDown className="w-3 h-3" />
                             )}
-                            <span>{product.growth >= 0 ? '+' : ''}{product.growth.toFixed(1)}%</span>
+                            <span>{(product.growth || 0) >= 0 ? '+' : ''}{(product.growth || 0).toFixed(1)}%</span>
                           </div>
                         </td>
                         <td className="px-4 py-2 text-sm font-medium text-gray-900">
-                          {product.profitMargin.toFixed(1)}%
+                          {(product.profitMargin || 0).toFixed(1)}%
                         </td>
                       </tr>
                     )) || []

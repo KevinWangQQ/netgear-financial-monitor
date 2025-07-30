@@ -154,7 +154,7 @@ export function RevenueAnalysis() {
   // 准备产品线数据
   const prepareProductLineData = () => {
     const productData = financialService.generateProductLineData(selectedProductYear)
-    return productData.level1
+    return productData.level1 || []
   }
 
   // 产品线营收占比数据（模拟，保留作为备用）
