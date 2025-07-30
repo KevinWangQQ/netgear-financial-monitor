@@ -1,28 +1,74 @@
 #!/usr/bin/env python3
 """
-简化版财务数据爬虫 - 只获取NTGR数据
+简化版财务数据爬虫 - 优先使用增强版，回退到基础版
 """
 
 import os
-import requests
-import time
+import sys
+import logging
 from datetime import datetime
-from dotenv import load_dotenv
-from supabase import create_client
 
-# 加载环境变量
-load_dotenv('../.env.local')
+# 尝试使用增强版爬虫，回退到基础版
+try:
+    from enhanced_crawler import EnhancedFinancialCrawler
+    USE_ENHANCED = True
+    print("使用增强版财务数据爬虫...")
+except ImportError:
+    USE_ENHANCED = False
+    print("使用基础版财务数据爬虫...")
+    
+    import requests
+    import time
+    from dotenv import load_dotenv
+    from supabase import create_client
 
-alpha_vantage_key = os.getenv('ALPHA_VANTAGE_API_KEY')
-supabase_url = os.getenv('NEXT_PUBLIC_SUPABASE_URL')
-supabase_key = os.getenv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+    # 加载环境变量
+    load_dotenv('../.env.local')
 
-supabase = create_client(supabase_url, supabase_key)
-base_url = 'https://www.alphavantage.co/query'
+# 配置日志
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('crawler_log.log'),
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 
-def make_api_request(params):
-    """发送API请求到Alpha Vantage"""
-    params['apikey'] = alpha_vantage_key
+def run_enhanced_crawler():
+    """运行增强版爬虫"""
+    logger = logging.getLogger(__name__)
+    
+    try:
+        crawler = EnhancedFinancialCrawler()
+        success = crawler.run_full_update()
+        
+        if success:
+            logger.info("🎉 增强版数据爬取成功完成!")
+            return True
+        else:
+            logger.error("❌ 增强版数据爬取失败")
+            return False
+            
+    except Exception as e:
+        logger.error(f"增强版爬虫运行异常: {e}")
+        return False
+
+def run_basic_crawler():
+    """运行基础版爬虫（原始逻辑）"""
+
+    logger = logging.getLogger(__name__)
+    
+    alpha_vantage_key = os.getenv('ALPHA_VANTAGE_API_KEY')
+    supabase_url = os.getenv('NEXT_PUBLIC_SUPABASE_URL')
+    supabase_key = os.getenv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+
+    supabase = create_client(supabase_url, supabase_key)
+    base_url = 'https://www.alphavantage.co/query'
+
+    def make_api_request(params):
+        """发送API请求到Alpha Vantage"""
+        params['apikey'] = alpha_vantage_key
     
     try:
         print(f"正在请求: {params.get('function')} for {params.get('symbol', 'N/A')}")
@@ -139,5 +185,29 @@ for i, income_report in enumerate(quarterly_income):
             except Exception as e:
                 print(f"❌ 保存数据失败: {e}")
 
-print(f"\n🎉 财务数据获取完成! 共保存 {saved_count} 条记录")
-print("现在可以启动前端应用查看数据: npm run dev")
+    logger.info(f"🎉 基础版财务数据获取完成! 共保存 {saved_count} 条记录")
+    return saved_count > 0
+
+def main():
+    """主函数"""
+    logger = logging.getLogger(__name__)
+    
+    if USE_ENHANCED:
+        # 尝试使用增强版爬虫
+        logger.info("开始运行增强版财务数据爬虫...")
+        success = run_enhanced_crawler()
+    else:
+        # 使用基础版爬虫
+        logger.info("开始运行基础版财务数据爬虫...")
+        success = run_basic_crawler()
+    
+    if success:
+        logger.info("🎉 数据更新成功完成!")
+        logger.info("现在可以启动前端应用查看数据: npm run dev")
+        sys.exit(0)
+    else:
+        logger.error("❌ 数据更新失败")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,168 @@
+name: Update Database with Latest Financial Data
+
+on:
+  # 每天UTC时间凌晨2点运行（对应北京时间上午10点）
+  schedule:
+    - cron: '0 2 * * *'
+  
+  # 允许手动触发
+  workflow_dispatch:
+    inputs:
+      force_update:
+        description: 'Force update all data'
+        required: false
+        default: 'false'
+        type: boolean
+
+jobs:
+  update-financial-data:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install Python dependencies
+      run: |
+        cd scripts
+        python -m pip install --upgrade pip
+        pip install requests supabase python-dotenv
+        
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        
+    - name: Install Node.js dependencies
+      run: npm ci
+      
+    - name: Run financial data crawler
+      env:
+        ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+        NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        FORCE_UPDATE: ${{ github.event.inputs.force_update }}
+      run: |
+        cd scripts
+        echo "开始更新财务数据..."
+        python run_crawler_simple.py
+        
+    - name: Test database connection
+      env:
+        ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+        NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      run: |
+        cd scripts
+        echo "测试数据库连接..."
+        python test_connection.py
+        
+    - name: Verify database tables
+      env:
+        NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      run: |
+        cd scripts
+        echo "验证数据库表结构..."
+        python check_tables.py
+        
+    - name: Test application build
+      run: |
+        echo "测试应用构建..."
+        npm run build
+        
+    - name: Deploy to production (if on main branch)
+      if: github.ref == 'refs/heads/main' && github.event_name == 'schedule'
+      env:
+        VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      run: |
+        echo "触发生产部署..."
+        npx vercel --prod --token $VERCEL_TOKEN
+        
+    - name: Create summary report
+      if: always()
+      run: |
+        echo "## 数据库更新报告 - $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 执行状态" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f "scripts/crawler_log.log" ]; then
+          echo "✅ 数据抓取完成" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 抓取日志" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -20 scripts/crawler_log.log >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ 数据抓取日志未找到" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 下次执行时间" >> $GITHUB_STEP_SUMMARY
+        echo "$(date -d '+1 day' '+%Y-%m-%d 02:00 UTC')" >> $GITHUB_STEP_SUMMARY
+        
+  # 数据质量检查任务
+  data-quality-check:
+    needs: update-financial-data
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        cd scripts
+        pip install requests supabase python-dotenv
+        
+    - name: Run data quality checks
+      env:
+        NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      run: |
+        cd scripts
+        python << 'EOF'
+        import os
+        from supabase import create_client
+        from dotenv import load_dotenv
+        
+        # 简单的数据质量检查
+        supabase_url = os.getenv('NEXT_PUBLIC_SUPABASE_URL')
+        supabase_key = os.getenv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+        supabase = create_client(supabase_url, supabase_key)
+        
+        print("🔍 数据质量报告")
+        print("=" * 40)
+        
+        # 检查财务数据
+        financial_data = supabase.table('financial_data').select('*').limit(5).execute()
+        print(f"📊 财务数据: {len(financial_data.data)} 条最新记录")
+        
+        # 检查产品线数据
+        product_data = supabase.table('product_line_revenue').select('*').limit(5).execute()
+        print(f"📦 产品线数据: {len(product_data.data)} 条记录")
+        
+        # 检查地理分布数据
+        geo_data = supabase.table('geographic_revenue').select('*').limit(5).execute()
+        print(f"🌍 地理分布数据: {len(geo_data.data)} 条记录")
+        
+        # 检查里程碑事件
+        events = supabase.table('milestone_events').select('*').limit(5).execute()
+        print(f"🎯 里程碑事件: {len(events.data)} 条记录")
+        
+        print("\n✅ 数据质量检查完成")
+        EOF
