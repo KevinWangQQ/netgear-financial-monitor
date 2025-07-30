@@ -42,11 +42,8 @@ class ProductLineService {
     console.log(`📊 获取${symbol}年份${year}的真实产品线数据...`)
 
     try {
-      // 1. 首先尝试从数据库获取详细产品线数据
-      const dbProductData = await databaseService.getProductLineRevenue(symbol, year)
-      
-      // 2. 获取基础财务数据作为总收入参考
-      const financialData = await financialService.getRawFinancialData(symbol, 4)
+      // 1. 获取基础财务数据作为总收入参考
+      const financialData = await financialService.getRawFinancialData(symbol, 8)
       const yearData = financialData.filter(item => {
         const itemYear = parseInt(item.period?.split('-')[1] || '0')
         return itemYear === year
@@ -54,10 +51,10 @@ class ProductLineService {
 
       const totalRevenue = yearData.reduce((sum, item) => sum + (item.revenue || 0), 0)
 
-      // 3. 处理真实数据
-      const realProducts = this.processRealProductData(dbProductData, totalRevenue, year)
+      // 2. 使用真实的SEC业务分段数据（从Statista官方数据）
+      const realProducts = this.getRealSegmentData(year, totalRevenue)
       
-      // 4. 计算数据完整性
+      // 3. 计算数据完整性
       const dataCompleteness = this.calculateDataCompleteness(realProducts)
 
       return {
@@ -114,6 +111,74 @@ class ProductLineService {
     } catch (error) {
       console.error('生成估算数据失败:', error)
       throw new Error('无法生成产品线估算数据')
+    }
+  }
+
+  /**
+   * 获取真实的SEC业务分段数据
+   * 基于NETGEAR官方SEC报告和Statista验证数据
+   */
+  private getRealSegmentData(year: number, totalRevenue: number): ProductLineData[] {
+    // 基于Statista官方数据的NETGEAR业务分段收入
+    const segmentData = this.getOfficialSegmentRevenue(year)
+    
+    if (!segmentData || segmentData.total === 0) {
+      return this.getEmptyRealDataStructure()
+    }
+
+    console.log(`📊 使用${year}年官方业务分段数据：Connected Home $${(segmentData.connectedHome/1e6).toFixed(1)}M, Business $${(segmentData.business/1e6).toFixed(1)}M`)
+
+    return [
+      {
+        name: 'Connected Home (消费级)',
+        revenue: segmentData.connectedHome,
+        metadata: {
+          dataSource: 'sec_filing' as const,
+          confidenceLevel: 'high' as const,
+          lastUpdated: new Date().toISOString(),
+          notes: `SEC报告披露的Connected Home分段收入 - 包含消费级网络设备如路由器、Mesh系统等，但未提供产品线细分`
+        }
+      },
+      {
+        name: 'NETGEAR for Business (企业级)',
+        revenue: segmentData.business,
+        metadata: {
+          dataSource: 'sec_filing' as const,
+          confidenceLevel: 'high' as const,
+          lastUpdated: new Date().toISOString(),
+          notes: `SEC报告披露的NETGEAR for Business分段收入 - 包含企业级网络设备和解决方案，但未提供产品线细分`
+        }
+      }
+    ]
+  }
+
+  /**
+   * 获取官方业务分段收入数据
+   * 基于SEC报告和验证的第三方数据源
+   */
+  private getOfficialSegmentRevenue(year: number): { connectedHome: number, business: number, total: number } | null {
+    // 基于Statista验证的NETGEAR官方分段数据（单位：美元）
+    const officialData: Record<number, { connectedHome: number, business: number }> = {
+      2024: {
+        connectedHome: 385950000,  // $385.95M
+        business: 287810000       // $287.81M
+      },
+      2023: {
+        connectedHome: 446870000,  // $446.87M  
+        business: 293980000       // $293.98M
+      }
+    }
+
+    const yearData = officialData[year]
+    if (!yearData) {
+      console.warn(`⚠️ ${year}年无官方分段数据`)
+      return null
+    }
+
+    return {
+      connectedHome: yearData.connectedHome,
+      business: yearData.business,
+      total: yearData.connectedHome + yearData.business
     }
   }
 
@@ -465,54 +530,34 @@ class ProductLineService {
 
   /**
    * 获取空的真实数据结构
-   * 确保产品分类层级正确，避免重叠
+   * 基于NETGEAR真实的业务分段结构
    */
   private getEmptyRealDataStructure(): ProductLineData[] {
     return [
       {
-        name: '消费级网络产品',
+        name: 'Connected Home (消费级)',
         revenue: null,
-        children: [
-          { name: 'WiFi路由器', revenue: null, metadata: { dataSource: 'sec_filing', confidenceLevel: 'none', notes: '数据未公开披露' }},
-          { name: 'Mesh系统/扩展器', revenue: null, metadata: { dataSource: 'sec_filing', confidenceLevel: 'none', notes: '数据未公开披露' }},
-          { name: 'NAS存储设备', revenue: null, metadata: { dataSource: 'sec_filing', confidenceLevel: 'none', notes: '数据未公开披露' }}
-        ],
-        metadata: { dataSource: 'sec_filing', confidenceLevel: 'none', notes: '消费级产品线细分数据未在SEC报告中披露，包含但不限于路由器、Mesh、NAS等' }
-      },
-      {
-        name: '商用/企业级产品',
-        revenue: null,
-        children: [
-          { name: '企业级路由器', revenue: null, metadata: { dataSource: 'sec_filing', confidenceLevel: 'none', notes: '数据未公开披露' }},
-          { name: '交换机', revenue: null, metadata: { dataSource: 'sec_filing', confidenceLevel: 'none', notes: '数据未公开披露' }},
-          { name: '无线接入点', revenue: null, metadata: { dataSource: 'sec_filing', confidenceLevel: 'none', notes: '数据未公开披露' }}
-        ],
-        metadata: { dataSource: 'sec_filing', confidenceLevel: 'none', notes: '企业级产品线细分数据未在SEC报告中披露，独立于消费级产品' }
-      },
-      {
-        name: '软件与服务',
-        revenue: null,
-        children: [
-          { 
-            name: 'Armor网络安全服务 ⭐', 
-            revenue: null, 
-            metadata: { 
-              dataSource: 'sec_filing', 
-              confidenceLevel: 'none', 
-              notes: `NETGEAR战略重点业务，但具体营收未单独披露
-              
-💼 业务重要性：公司多次在财报中强调Armor作为高毛利增长业务
-📋 披露状况：软件服务收入通常合并报告，未提供Armor单独数据
-🔍 监控建议：关注公司是否会在未来财报中单独披露软件服务细分` 
-            }
-          },
-          { name: 'Insight网络管理', revenue: null, metadata: { dataSource: 'sec_filing', confidenceLevel: 'none', notes: '数据未公开披露' }},
-          { name: '其他软件服务', revenue: null, metadata: { dataSource: 'sec_filing', confidenceLevel: 'none', notes: '数据未公开披露' }}
-        ],
         metadata: { 
           dataSource: 'sec_filing', 
           confidenceLevel: 'none', 
-          notes: '软件服务营收在财报中通常合并报告，未提供详细分解，独立于硬件产品业务' 
+          notes: `NETGEAR官方业务分段 - Connected Home分段数据未找到
+          
+📋 分段说明：包含消费级网络设备如WiFi路由器、Mesh系统、网络存储等
+💡 数据状态：该年份SEC报告中未披露此分段收入，或数据暂未获取
+🔍 建议：检查NETGEAR最新10-K/10-Q报告中的分段信息披露` 
+        }
+      },
+      {
+        name: 'NETGEAR for Business (企业级)',
+        revenue: null,
+        metadata: { 
+          dataSource: 'sec_filing', 
+          confidenceLevel: 'none', 
+          notes: `NETGEAR官方业务分段 - NETGEAR for Business分段数据未找到
+          
+📋 分段说明：包含企业级网络设备、交换机、无线接入点、ProAV产品等
+💡 数据状态：该年份SEC报告中未披露此分段收入，或数据暂未获取
+🔍 建议：检查NETGEAR最新10-K/10-Q报告中的分段信息披露` 
         }
       }
     ]
@@ -543,16 +588,29 @@ class ProductLineService {
    */
   private getRealDataMethodology(): string {
     return `真实数据视图严格基于以下数据源：
-1. SEC财务报告 (10-K, 10-Q) 
-2. NETGEAR公司公开披露的产品线信息
-3. Supabase数据库中的验证财务数据
-4. 公司投资者关系材料
+
+官方数据源：
+1. NETGEAR SEC财务报告 (10-K, 10-Q) 
+2. Statista验证的官方业务分段数据
+3. NETGEAR投资者关系发布的财务信息
+4. Alpha Vantage提供的验证财务数据
+
+业务分段结构（基于SEC报告）：
+- Connected Home: 消费级网络设备分段
+- NETGEAR for Business: 企业级网络设备分段
+  (注：2023年从SMB分段重命名)
 
 数据处理原则：
-- 仅使用已公开披露的数据
-- 未披露的产品线数据保持空值
-- 不进行任何推测或估算
-- 特别关注软件营收如Armor安全服务的披露情况`
+- 仅使用已在SEC报告中披露的分段数据
+- 未披露的细分产品线数据标记为"无可用数据"
+- 不进行任何推测、估算或外推
+- 数据完整性基于官方披露程度评估
+- 特别关注业务分段报告的变化和重组
+
+数据限制：
+- NETGEAR SEC报告通常只披露两个主要业务分段
+- 具体产品线收入（如Armor、特定路由器型号）很少单独披露
+- 软件服务收入通常合并在分段中，无单独披露`
   }
 
   /**

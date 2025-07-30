@@ -250,32 +250,48 @@ class EnhancedFinancialCrawler:
             if not company_id:
                 return
             
-            # 获取最新的财务数据
+            # 获取所有财务数据，为每个期间生成产品线估算
             result = self.supabase.table('financial_data').select('*').eq(
                 'company_id', company_id
-            ).order('fiscal_year', desc=True).order('fiscal_quarter', desc=True).limit(1).execute()
+            ).order('fiscal_year', desc=True).order('fiscal_quarter', desc=True).execute()
             
             if not result.data:
                 logger.warning(f"未找到 {symbol} 的财务数据")
                 return
             
-            latest_data = result.data[0]
-            revenue = latest_data['revenue']
-            period = latest_data['period']
-            year = latest_data['fiscal_year']
-            quarter = latest_data['fiscal_quarter']
+            logger.info(f"为 {symbol} 的 {len(result.data)} 个财务期间生成产品线估算数据")
             
-            if not revenue:
-                logger.warning(f"营收数据为空: {symbol} {period}")
-                return
+            processed_count = 0
+            for financial_data in result.data:
+                revenue = financial_data['revenue']
+                period = financial_data['period']
+                year = financial_data['fiscal_year']
+                quarter = financial_data['fiscal_quarter']
+                
+                if not revenue or revenue <= 0:
+                    logger.warning(f"跳过营收为空的期间: {symbol} {period}")
+                    continue
+                
+                # 检查是否已存在产品线数据
+                existing = self.supabase.table('product_line_revenue').select('id').eq(
+                    'company_id', company_id
+                ).eq('period', period).limit(1).execute()
+                
+                if existing.data:
+                    logger.info(f"跳过已存在产品线数据的期间: {period}")
+                    continue
+                
+                logger.info(f"为 {symbol} {period} (营收 ${revenue/1e6:.1f}M) 生成产品线估算")
+                
+                # 更新产品线数据（基于营收比例）
+                self.update_product_line_estimates(company_id, period, year, quarter, revenue)
+                
+                # 更新地理分布数据
+                self.update_geographic_estimates(company_id, period, year, quarter, revenue)
+                
+                processed_count += 1
             
-            logger.info(f"基于 {symbol} {period} 营收 ${revenue/1e6:.1f}M 更新增强数据")
-            
-            # 更新产品线数据（基于营收比例）
-            self.update_product_line_estimates(company_id, period, year, quarter, revenue)
-            
-            # 更新地理分布数据
-            self.update_geographic_estimates(company_id, period, year, quarter, revenue)
+            logger.info(f"✅ 完成 {symbol} 产品线数据生成，处理了 {processed_count} 个财务期间")
             
         except Exception as e:
             logger.error(f"更新增强数据失败 {symbol}: {e}")

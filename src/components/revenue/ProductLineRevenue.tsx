@@ -646,22 +646,40 @@ export function ProductLineRevenue({
           />
         ) : (
           <div className="flex items-center justify-center" style={{ height: `${height}px` }}>
-            <div className="text-center text-gray-500">
+            <div className="text-center text-gray-500 max-w-md">
               <Package className="w-12 h-12 mx-auto mb-4 text-gray-300" />
               <p className="text-lg font-medium">
-                {dataViewMode === 'real' ? '暂无真实产品线数据' : '暂无估算数据'}
-              </p>
-              <p className="text-sm mt-2">
                 {dataViewMode === 'real' 
-                  ? 'NETGEAR未在SEC报告中详细披露产品线营收分解' 
-                  : '估算数据生成失败，请检查基础数据'}
+                  ? `${selectedYear}年度产品线数据不可用` 
+                  : '暂无估算数据'}
               </p>
+              <div className="text-sm mt-3 text-left space-y-2">
+                {dataViewMode === 'real' ? (
+                  <>
+                    <p className="font-medium text-gray-600">📋 数据状况说明：</p>
+                    <ul className="text-xs text-gray-500 space-y-1">
+                      <li>• NETGEAR在SEC报告中披露业务分段收入</li>
+                      <li>• {selectedYear}年度可能尚未披露或数据暂未获取</li>
+                      <li>• 详细产品线分解通常不在公开财报中</li>
+                      <li>• 只显示已验证的官方数据，确保准确性</li>
+                    </ul>
+                    <div className="mt-4 p-3 bg-blue-50 rounded-lg text-left">
+                      <p className="text-xs text-blue-700 font-medium">💡 可用数据年份：2023, 2024</p>
+                      <p className="text-xs text-blue-600 mt-1">建议切换到这些年份查看真实的业务分段数据</p>
+                    </div>
+                  </>
+                ) : (
+                  <p>估算数据已被清理，系统现在只显示基于SEC报告的真实数据</p>
+                )}
+              </div>
               {dataViewMode === 'real' && (
                 <button 
                   onClick={() => setDataViewMode('estimated')}
-                  className="mt-4 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+                  className="mt-4 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50"
+                  disabled
+                  title="估算数据已清理，只保留真实数据"
                 >
-                  查看估算数据
+                  估算数据不可用
                 </button>
               )}
             </div>
@@ -744,12 +762,17 @@ export function ProductLineRevenue({
                           <td className="px-4 py-2 text-sm">
                             {product.revenue !== null && product.revenue > 0 ? (
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                已披露
+                                SEC已披露
                               </span>
                             ) : (
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                未披露
-                              </span>
+                              <div className="space-y-1">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                  SEC未细分
+                                </span>
+                                <div className="text-xs text-gray-500">
+                                  仅披露分段汇总
+                                </div>
+                              </div>
                             )}
                           </td>
                         )}
