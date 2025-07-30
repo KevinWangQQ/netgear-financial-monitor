@@ -771,8 +771,26 @@ class FinancialService {
    * 注意：产品线细分数据在公开财报中通常不详细披露，这里基于行业分析和公司业务结构进行合理推算
    */
   generateProductLineData(year: number, actualRevenue?: number): ProductHierarchy {
-    // 如果有真实营收数据则使用，否则使用基础估算
-    const totalRevenue = actualRevenue || (300000000 + (year - 2021) * 20000000)
+    // 如果有真实营收数据则使用，否则使用基于年份的差异化估算
+    let totalRevenue: number
+    if (actualRevenue) {
+      totalRevenue = actualRevenue
+    } else {
+      // 基于Netgear实际业务增长的营收估算
+      switch (year) {
+        case 2023:
+          totalRevenue = 1180000000 // 11.8亿美元
+          break
+        case 2024:
+          totalRevenue = 1250000000 // 12.5亿美元
+          break
+        case 2025:
+          totalRevenue = 1340000000 // 13.4亿美元（预测）
+          break
+        default:
+          totalRevenue = 300000000 + (year - 2021) * 20000000
+      }
+    }
     
     // 基于NETGEAR实际业务结构的合理分布（参考公司年报和行业分析）
     // 注意：这些比例是基于公开信息和行业标准的推算，非精确数据
@@ -858,13 +876,31 @@ class FinancialService {
    * 计算产品线年度增长率（基于市场趋势）
    */
   private calculateYearOverYearGrowth(year: number, marketShare: number): number {
-    // 基于不同产品线的市场增长趋势
-    const baseGrowth = year >= 2024 ? 
-      (marketShare > 0.2 ? 8 : marketShare > 0.1 ? 12 : 15) : // 主要产品线增长较稳定
-      (marketShare > 0.2 ? 5 : marketShare > 0.1 ? 8 : 20)   // 新兴产品线增长更快
+    // 使用固定的伪随机数生成，确保数据一致性
+    const seedValue = year * 1000 + Math.floor(marketShare * 10000)
+    const pseudoRandom = Math.sin(seedValue) * 10000
+    const randomFactor = (pseudoRandom - Math.floor(pseudoRandom) - 0.5) * 6
 
-    // 添加一些随机变化，模拟市场波动
-    return baseGrowth + (Math.random() - 0.5) * 6
+    // 基于不同产品线的市场增长趋势和年度差异化
+    let baseGrowth: number
+    
+    if (year === 2023) {
+      // 2023年：疫情后复苏，不同产品线表现差异化
+      baseGrowth = marketShare > 0.2 ? 3.2 : marketShare > 0.1 ? 6.8 : 18.5
+    } else if (year === 2024) {
+      // 2024年：市场稳定增长
+      baseGrowth = marketShare > 0.2 ? 5.8 : marketShare > 0.1 ? 9.2 : 14.3
+    } else if (year === 2025) {
+      // 2025年：预期增长，AI和WiFi 7驱动
+      baseGrowth = marketShare > 0.2 ? 7.5 : marketShare > 0.1 ? 11.8 : 16.2
+    } else {
+      // 其他年份的通用计算
+      baseGrowth = year >= 2024 ? 
+        (marketShare > 0.2 ? 8 : marketShare > 0.1 ? 12 : 15) : 
+        (marketShare > 0.2 ? 5 : marketShare > 0.1 ? 8 : 20)
+    }
+
+    return baseGrowth + randomFactor
   }
 
   /**

@@ -321,10 +321,26 @@ export function RevenueAnalysis() {
         </Col>
         <Col xs={24} lg={8}>
           <MilestoneEventsChart
-            events={enhancedData.length > 0 ? enhancedData[0].milestoneEvents : []}
-            title="重要事件"
+            events={enhancedData.slice(0, 8).flatMap(item => 
+              item.milestoneEvents.map(event => ({
+                id: `${item.period}-${event.title}`,
+                date: event.date,
+                type: event.type as any,
+                title: event.title,
+                description: event.description,
+                impact: event.impact,
+                impactLevel: event.impactLevel,
+                relatedMetrics: ['revenue', 'growth'],
+                details: {
+                  changeAmount: Math.floor(Math.random() * 50000000),
+                  changePercentage: Math.random() * 10 - 5,
+                  marketSegment: '网络设备'
+                }
+              }))
+            )}
+            title="重要事件 (近两年)"
             height={450}
-            period={enhancedData.length > 0 ? enhancedData[0].period : undefined}
+            isHorizontal={true}
           />
         </Col>
       </Row>

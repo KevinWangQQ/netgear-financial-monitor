@@ -95,11 +95,11 @@ export function MilestoneEventsChart({
     return levels[level - 1] || '未知'
   }
 
-  // 排序事件（横向时间轴按日期正序，纵向按日期倒序）
+  // 排序事件（横向时间轴按日期倒序最新在左，纵向按日期倒序）
   const sortedEvents = [...events].sort((a, b) => {
     const timeA = new Date(a.date).getTime()
     const timeB = new Date(b.date).getTime()
-    return isHorizontal ? timeA - timeB : timeB - timeA
+    return timeB - timeA // 都按倒序，最新的在前
   })
 
   // 准备Timeline数据
