@@ -5,6 +5,7 @@
 
 import { supabase } from './supabase'
 import { Database } from './supabase'
+import { databaseService } from './database-service'
 import { sortByQuarter, parseQuarter, formatQuarterDisplay } from './date-utils'
 import { 
   EnhancedFinancialData, 
@@ -81,6 +82,106 @@ export interface GeographicData {
 
 class FinancialService {
   
+  /**
+   * 从数据库获取产品线营收数据
+   */
+  async getProductLineRevenueFromDB(symbol: string, year?: number): Promise<ProductHierarchy | null> {
+    try {
+      const data = await databaseService.getProductLineRevenue(symbol, year)
+      
+      if (!data || data.length === 0) {
+        console.warn(`没有找到${symbol}的产品线数据`)
+        return null
+      }
+
+      // 按层级分组数据
+      const level1Categories = data.filter(item => item.category_level === 1)
+      const level2Products = data.filter(item => item.category_level === 2)
+
+      return {
+        level1: level1Categories.map(category => ({
+          name: category.category_name,
+          revenue: category.revenue,
+          children: level2Products
+            .filter(product => product.category_name.includes(category.category_name.substring(0, 2))) // 简单匹配
+            .map(product => ({
+              name: product.category_name,
+              revenue: product.revenue,
+              profitMargin: product.gross_margin || 25,
+              growth: product.yoy_growth || 0
+            }))
+        }))
+      }
+    } catch (error) {
+      console.error('从数据库获取产品线数据失败:', error)
+      return null
+    }
+  }
+
+  /**
+   * 从数据库获取地理分布数据
+   */
+  async getGeographicDataFromDB(symbol: string, year?: number): Promise<GeographicData[]> {
+    try {
+      const data = await databaseService.getGeographicRevenue(symbol, year)
+      
+      if (!data || data.length === 0) {
+        console.warn(`没有找到${symbol}的地理分布数据`)
+        return []
+      }
+
+      return data.map(item => ({
+        region: item.region,
+        country: item.country || undefined,
+        revenue: item.revenue,
+        percentage: item.revenue_percentage || 0,
+        growth: item.yoy_growth || 0,
+        coordinates: item.latitude && item.longitude 
+          ? [item.longitude, item.latitude] as [number, number]
+          : undefined,
+        marketSize: item.market_size || undefined
+      }))
+    } catch (error) {
+      console.error('从数据库获取地理分布数据失败:', error)
+      return []
+    }
+  }
+
+  /**
+   * 从数据库获取里程碑事件数据
+   */
+  async getMilestoneEventsFromDB(symbol: string, startDate?: string, endDate?: string): Promise<FinancialEvent[]> {
+    try {
+      const data = await databaseService.getMilestoneEvents(symbol, startDate, endDate)
+      
+      if (!data || data.length === 0) {
+        console.warn(`没有找到${symbol}的里程碑事件数据`)
+        return []
+      }
+
+      return data.map(event => ({
+        id: event.id,
+        date: event.event_date,
+        type: event.event_type,
+        title: event.title,
+        description: event.description || '',
+        impact: event.impact_type as 'positive' | 'negative' | 'neutral',
+        impactLevel: event.impact_level,
+        relatedMetrics: event.related_metrics || []
+      }))
+    } catch (error) {
+      console.error('从数据库获取里程碑事件失败:', error)
+      return []
+    }
+  }
+
+  /**
+   * 检查数据库连接状态
+   */
+  async checkDatabaseAvailability(): Promise<boolean> {
+    return await databaseService.checkDatabaseConnection()
+  }
+
   /**
    * 获取公司的原始财务数据
    */

@@ -58,7 +58,7 @@ export function ProductLineRevenue({
   onExport
 }: ProductLineRevenueProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('sunburst')
-  const [showDetails, setShowDetails] = useState(false)
+  const [showDetails, setShowDetails] = useState(true) // 默认展开详细数据
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
   // 颜色生成函数 - 移到前面避免初始化顺序问题
@@ -408,7 +408,7 @@ export function ProductLineRevenue({
           <div>
             <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
             <p className="text-xs text-gray-500 mt-1">
-              *基于真实财务数据的产品线分布推算（NETGEAR实际业务结构）
+              *优先使用数据库数据，回退到基于真实财务数据的产品线分布推算
             </p>
           </div>
           <MetricTooltip metricId="productRevenue">

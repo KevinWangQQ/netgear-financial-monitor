@@ -59,10 +59,112 @@ export function FinancialDataModule() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedProductYear, setSelectedProductYear] = useState(2025)
+  
+  // 数据库产品线数据状态
+  const [dbProductData, setDbProductData] = useState<any[]>([])
+  const [dbDataLoaded, setDbDataLoaded] = useState(false)
+  
+  // 数据库地理分布数据状态
+  const [dbGeographicData, setDbGeographicData] = useState<GeographicData[]>([])
+  const [dbGeoDataLoaded, setDbGeoDataLoaded] = useState(false)
 
   useEffect(() => {
     fetchFinancialData()
   }, [])
+
+  // 获取产品线数据
+  useEffect(() => {
+    const fetchDbProductData = async () => {
+      try {
+        const dbData = await financialService.getProductLineRevenueFromDB('NTGR', selectedProductYear)
+        if (dbData && dbData.level1.length > 0) {
+          console.log(`从数据库获取到${selectedProductYear}年产品线数据`)
+          setDbProductData(dbData.level1.map(item => ({
+            name: item.name,
+            revenue: item.revenue,
+            profitMargin: item.children.reduce((sum, child) => sum + child.profitMargin, 0) / item.children.length || 25,
+            growth: item.children.reduce((sum, child) => sum + child.growth, 0) / item.children.length || 0,
+            children: item.children
+          })))
+          setDbDataLoaded(true)
+          return
+        }
+      } catch (error) {
+        console.warn('从数据库获取产品线数据失败，使用估算数据:', error)
+      }
+
+      // 回退到基于真实财务数据的估算
+      if (!rawData || rawData.length === 0) {
+        setDbProductData([])
+        setDbDataLoaded(true)
+        return
+      }
+
+      // 获取选定年份的真实营收数据
+      const selectedYearData = rawData.filter(item => item.year === selectedProductYear)
+      
+      if (selectedYearData.length === 0) {
+        console.warn(`没有找到${selectedProductYear}年的真实财务数据`)
+        setDbProductData([])
+        setDbDataLoaded(true)
+        return
+      }
+
+      // 计算该年份的实际总营收（基于现有季度数据）
+      const actualYearRevenue = selectedYearData.reduce((sum, item) => sum + item.revenue, 0)
+      
+      // 显示数据来源信息
+      const availableQuarters = selectedYearData.map(item => `Q${item.quarter}`).join(', ')
+      console.log(`${selectedProductYear}年产品线分析基于真实财务数据：`)
+      console.log(`- 可用季度：${availableQuarters}`)
+      console.log(`- 实际营收总计：$${(actualYearRevenue / 1e6).toFixed(1)}M`)
+      
+      // 基于真实营收数据生成产品线分布
+      const productData = financialService.generateProductLineData(selectedProductYear, actualYearRevenue)
+      
+      setDbProductData(productData.level1.map(item => ({
+        name: item.name,
+        revenue: item.revenue,
+        profitMargin: item.children.reduce((sum, child) => sum + child.profitMargin, 0) / item.children.length,
+        growth: item.children.reduce((sum, child) => sum + child.growth, 0) / item.children.length,
+        children: item.children
+      })))
+      setDbDataLoaded(true)
+    }
+
+    fetchDbProductData()
+  }, [selectedProductYear, rawData])
+
+  // 获取地理分布数据
+  useEffect(() => {
+    const fetchDbGeographicData = async () => {
+      try {
+        const dbGeoData = await financialService.getGeographicDataFromDB('NTGR', 2025)
+        if (dbGeoData && dbGeoData.length > 0) {
+          console.log('从数据库获取到地理分布数据')
+          setDbGeographicData(dbGeoData)
+          setDbGeoDataLoaded(true)
+          return
+        }
+      } catch (error) {
+        console.warn('从数据库获取地理分布数据失败，使用估算数据:', error)
+      }
+
+      // 回退到基于真实财务数据的估算
+      if (rawData && rawData.length > 0) {
+        const latestRevenue = rawData[0]?.revenue || 0
+        const geographic = financialService.getGeographicData(latestRevenue)
+        setDbGeographicData(geographic)
+      } else {
+        setDbGeographicData([])
+      }
+      setDbGeoDataLoaded(true)
+    }
+
+    if (rawData.length > 0) { // 等待财务数据加载完成
+      fetchDbGeographicData()
+    }
+  }, [rawData])
 
   const fetchFinancialData = async () => {
     try {
@@ -248,39 +350,8 @@ export function FinancialDataModule() {
   }
 
   const prepareProductLineData = () => {
-    // 如果没有真实数据，返回空数组
-    if (!rawData || rawData.length === 0) {
-      return []
-    }
-
-    // 获取选定年份的真实营收数据
-    const selectedYearData = rawData.filter(item => item.year === selectedProductYear)
-    
-    if (selectedYearData.length === 0) {
-      // 如果选定年份没有数据，显示警告并返回空数组
-      console.warn(`没有找到${selectedProductYear}年的真实财务数据`)
-      return []
-    }
-
-    // 计算该年份的实际总营收（基于现有季度数据）
-    const actualYearRevenue = selectedYearData.reduce((sum, item) => sum + item.revenue, 0)
-    
-    // 显示数据来源信息
-    const availableQuarters = selectedYearData.map(item => `Q${item.quarter}`).join(', ')
-    console.log(`${selectedProductYear}年产品线分析基于真实财务数据：`)
-    console.log(`- 可用季度：${availableQuarters}`)
-    console.log(`- 实际营收总计：$${(actualYearRevenue / 1e6).toFixed(1)}M`)
-    
-    // 基于真实营收数据生成产品线分布
-    const productData = financialService.generateProductLineData(selectedProductYear, actualYearRevenue)
-    
-    return productData.level1.map(item => ({
-      name: item.name,
-      revenue: item.revenue,
-      profitMargin: item.children.reduce((sum, child) => sum + child.profitMargin, 0) / item.children.length,
-      growth: item.children.reduce((sum, child) => sum + child.growth, 0) / item.children.length,
-      children: item.children
-    }))
+    // 返回数据库中的产品线数据，如果没有则返回空数组
+    return dbDataLoaded ? dbProductData : []
   }
 
   if (loading) {
@@ -525,7 +596,7 @@ export function FinancialDataModule() {
         transition={{ delay: 0.6 }}
       >
         <GeographicChart
-          data={geographicData}
+          data={dbGeoDataLoaded ? dbGeographicData : geographicData}
           title="地区营收分布"
           height={300}
         />
