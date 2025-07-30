@@ -244,7 +244,14 @@ export function FinancialDataModule() {
   }
 
   const prepareProductLineData = () => {
-    const productData = financialService.generateProductLineData(selectedProductYear)
+    // 获取选定年份的真实营收数据
+    const selectedYearRevenue = enhancedData
+      .filter(item => item.year === selectedProductYear)
+      .reduce((sum, item) => sum + item.revenue, 0)
+    
+    // 基于真实营收数据生成产品线分布
+    const productData = financialService.generateProductLineData(selectedProductYear, selectedYearRevenue)
+    
     return productData.level1.map(item => ({
       name: item.name,
       revenue: item.revenue,

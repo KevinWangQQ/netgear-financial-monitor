@@ -334,7 +334,12 @@ export function InteractiveMap({
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
           <Globe className="w-5 h-5 text-blue-600" />
-          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+            <p className="text-xs text-gray-500 mt-1">
+              *地理分布基于总营收和市场份额推算
+            </p>
+          </div>
         </div>
         
         {showControls && (
@@ -369,6 +374,13 @@ export function InteractiveMap({
             zoom={2}
             style={{ height: '100%', width: '100%', borderRadius: '8px' }}
             className="z-0"
+            zoomControl={false}
+            scrollWheelZoom={false}
+            doubleClickZoom={false}
+            touchZoom={false}
+            boxZoom={false}
+            keyboard={false}
+            dragging={false}
           >
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

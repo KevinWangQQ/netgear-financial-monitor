@@ -405,7 +405,12 @@ export function ProductLineRevenue({
       <div className="flex items-center justify-between p-6 border-b border-gray-100">
         <div className="flex items-center space-x-3">
           <Package className="w-5 h-5 text-blue-600" />
-          <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+            <p className="text-xs text-gray-500 mt-1">
+              *产品线数据基于总营收和行业分析推算，非精确细分数据
+            </p>
+          </div>
           <MetricTooltip metricId="productRevenue">
             <Info className="w-4 h-4 text-gray-400 hover:text-gray-600" />
           </MetricTooltip>
