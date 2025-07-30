@@ -129,16 +129,19 @@ export function ProductLineRevenue({
     }))
   }, [analysis])
 
-  // 准备图表数据
+  // 准备图表数据 - 修复infinity%问题
   const chartData = useMemo(() => {
+    // 安全检查totalRevenue
+    const safeTotalRevenue = totalRevenue && totalRevenue > 0 ? totalRevenue : 1
+    
     if (viewMode === 'sunburst') {
       // 旭日图数据 - 支持层级结构
       return data.map(category => ({
         name: category.name,
-        value: category.revenue,
+        value: Math.max(category.revenue || 0, 0), // 确保非负值
         children: category.children?.map(subcategory => ({
           name: subcategory.name,
-          value: subcategory.revenue,
+          value: Math.max(subcategory.revenue || 0, 0),
           growth: subcategory.growth || 0,
           profitMargin: subcategory.profitMargin || 0,
           itemStyle: {
@@ -153,15 +156,17 @@ export function ProductLineRevenue({
       // 矩形树图数据
       return data.map(category => ({
         name: category.name,
-        value: category.revenue,
+        value: Math.max(category.revenue || 0, 0),
         children: category.children?.map(subcategory => ({
           name: subcategory.name,
-          value: subcategory.revenue,
+          value: Math.max(subcategory.revenue || 0, 0),
           label: {
             show: true,
             formatter: (params: any) => {
-              const valueInM = (params.value / 1e6).toFixed(1)
-              const percentage = ((params.value / totalRevenue) * 100).toFixed(1)
+              const valueInM = (Math.max(params.value || 0, 0) / 1e6).toFixed(1)
+              const percentage = safeTotalRevenue > 0 
+                ? ((Math.max(params.value || 0, 0) / safeTotalRevenue) * 100).toFixed(1)
+                : '0.0'
               return `${params.name}\n$${valueInM}M\n${percentage}%`
             }
           }
@@ -171,21 +176,24 @@ export function ProductLineRevenue({
       // 饼图和柱状图数据
       const flatData = data.flatMap(category => 
         category.children && category.children.length > 0 
-          ? category.children.map(subcategory => ({
-              name: subcategory.name,
-              value: Math.round(subcategory.revenue / 1e6), // 转换为百万
-              category: category.name,
-              growth: subcategory.growth || 0,
-              profitMargin: subcategory.profitMargin || 0,
-              percentage: (subcategory.revenue / totalRevenue * 100)
-            }))
+          ? category.children.map(subcategory => {
+              const revenue = Math.max(subcategory.revenue || 0, 0)
+              return {
+                name: subcategory.name,
+                value: Math.round(revenue / 1e6), // 转换为百万
+                category: category.name,
+                growth: subcategory.growth || 0,
+                profitMargin: subcategory.profitMargin || 0,
+                percentage: safeTotalRevenue > 0 ? (revenue / safeTotalRevenue * 100) : 0
+              }
+            })
           : [{
               name: category.name,
-              value: Math.round(category.revenue / 1e6),
+              value: Math.round(Math.max(category.revenue || 0, 0) / 1e6),
               category: '主要分类',
               growth: category.growth || 0,
               profitMargin: category.profitMargin || 0,
-              percentage: (category.revenue / totalRevenue * 100)
+              percentage: safeTotalRevenue > 0 ? (Math.max(category.revenue || 0, 0) / safeTotalRevenue * 100) : 0
             }]
       )
       return selectedCategory ? 
@@ -704,10 +712,16 @@ export function ProductLineRevenue({
                           </div>
                         </td>
                         <td className="px-4 py-2 text-sm font-medium text-gray-900">
-                          ${(product.revenue / 1e6).toFixed(1)}M
+                          {product.revenue !== null && product.revenue > 0 
+                            ? `$${(product.revenue / 1e6).toFixed(1)}M`
+                            : '未披露'
+                          }
                         </td>
                         <td className="px-4 py-2 text-sm text-gray-600">
-                          {((product.revenue / totalRevenue) * 100).toFixed(1)}%
+                          {product.revenue !== null && product.revenue > 0 && totalRevenue > 0
+                            ? `${((product.revenue / totalRevenue) * 100).toFixed(1)}%`
+                            : '-'
+                          }
                         </td>
                         <td className="px-4 py-2 text-sm">
                           <div className={`flex items-center space-x-1 ${

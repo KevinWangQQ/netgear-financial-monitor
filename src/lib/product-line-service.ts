@@ -119,65 +119,171 @@ class ProductLineService {
 
   /**
    * 处理真实产品线数据
+   * 修复产品分类重叠问题和数据结构层级
    */
   private processRealProductData(dbData: any[], totalRevenue: number, year: number): ProductLineData[] {
     if (!dbData || dbData.length === 0) {
       return this.getEmptyRealDataStructure()
     }
 
-    // 按产品类别分组
-    const categories = new Map<string, any[]>()
+    console.log(`📊 处理${year}年真实产品线数据，共${dbData.length}条记录`)
+    console.log('原始数据:', dbData.map(item => `${item.category_name}/${item.product_name}: $${item.revenue}`))
+
+    // 定义产品层级结构，避免重叠 - 基于实际数据库结构
+    const productHierarchy = {
+      '消费级网络产品': ['WiFi路由器', '网络扩展器', 'Mesh系统', '网络存储', 'NAS'],
+      '商用/企业级产品': ['企业级路由器', '交换机', '无线接入点', '网络管理设备'],
+      '服务与软件': ['Armor安全服务', 'Insight网络管理', '其他服务', '其他软件服务']
+    }
+    
+    // 实际数据库中的分类映射
+    const actualCategoryMappings = {
+      'WiFi路由器': '消费级网络产品',
+      '网络扩展器': '消费级网络产品', 
+      'Mesh系统': '消费级网络产品',
+      '网络存储(NAS)': '消费级网络产品',
+      '企业级路由器': '商用/企业级产品',
+      '交换机': '商用/企业级产品',
+      '无线接入点': '商用/企业级产品',
+      'Armor安全服务': '服务与软件',
+      'Insight网络管理': '服务与软件',
+      '其他服务': '服务与软件'
+    }
+
+    // 分离顶级分类和子产品 - 修复数据重复计算问题
+    const topLevelCategories = new Map<string, any[]>()
+    const childProducts = new Map<string, any[]>()
     
     dbData.forEach(item => {
-      const category = item.category_name || '未分类'
-      if (!categories.has(category)) {
-        categories.set(category, [])
+      const categoryName = item.category_name || '未分类'
+      const productName = item.product_name || categoryName
+      
+      // 检查是否为顶级汇总分类
+      const isTopLevelSummary = Object.keys(productHierarchy).includes(categoryName)
+      
+      // 检查是否为子产品（通过映射表）
+      const parentCategory = actualCategoryMappings[categoryName]
+      
+      if (parentCategory) {
+        // 这是一个子产品，归属到父分类下
+        if (!childProducts.has(parentCategory)) {
+          childProducts.set(parentCategory, [])
+        }
+        childProducts.get(parentCategory)!.push({ 
+          ...item, 
+          category_name: parentCategory, 
+          product_name: categoryName 
+        })
+        console.log(`📂 子产品: ${categoryName} -> ${parentCategory}`)
+      } else if (isTopLevelSummary) {
+        // 这是顶级汇总分类，暂时保存（但可能会被子产品数据覆盖）
+        if (!topLevelCategories.has(categoryName)) {
+          topLevelCategories.set(categoryName, [])
+        }
+        topLevelCategories.get(categoryName)!.push(item)
+        console.log(`📊 顶级分类: ${categoryName}`)
+      } else {
+        // 处理未知分类
+        console.warn(`⚠️ 未知产品分类: ${categoryName}`)
+        if (!topLevelCategories.has('其他产品')) {
+          topLevelCategories.set('其他产品', [])
+        }
+        topLevelCategories.get('其他产品')!.push(item)
       }
-      categories.get(category)!.push(item)
     })
 
-    return Array.from(categories.entries()).map(([categoryName, items]) => {
-      const categoryRevenue = items.reduce((sum, item) => sum + (item.revenue || 0), 0)
+    // 构建最终的产品层级结构 - 避免重复计算
+    const result: ProductLineData[] = []
+    
+    Object.keys(productHierarchy).forEach(categoryName => {
+      const topLevelItems = topLevelCategories.get(categoryName) || []
+      const childItems = childProducts.get(categoryName) || []
       
-      return {
+      // 计算分类总收入（避免重复计算）
+      let categoryRevenue = 0
+      const children: ProductLineData[] = []
+      
+      console.log(`\n🏗️ 构建分类: ${categoryName}`)
+      console.log(`  - 顶级项目: ${topLevelItems.length}个`)
+      console.log(`  - 子产品: ${childItems.length}个`)
+      
+      // 优先使用子产品数据（更详细），避免与汇总数据重复
+      if (childItems.length > 0) {
+        console.log(`  ✅ 使用子产品数据构建 ${categoryName}`)
+        childItems.forEach(item => {
+          const revenue = item.revenue || 0
+          categoryRevenue += revenue
+          children.push({
+            name: item.product_name || item.category_name,
+            revenue: revenue > 0 ? revenue : null,
+            profitMargin: item.gross_margin || null,
+            growth: item.yoy_growth || null,
+            metadata: {
+              dataSource: 'company_disclosure' as const,
+              confidenceLevel: 'high' as const,
+              lastUpdated: item.updated_at || undefined,
+              notes: '来自公司财务报告 - 子产品详细数据'
+            }
+          })
+          console.log(`    - ${item.product_name}: $${(revenue/1e6).toFixed(1)}M`)
+        })
+      } else if (topLevelItems.length > 0) {
+        // 如果只有顶级分类数据且没有子产品，使用顶级数据
+        console.log(`  📊 使用顶级汇总数据 ${categoryName}`)
+        topLevelItems.forEach(item => {
+          const revenue = item.revenue || 0
+          categoryRevenue += revenue
+          console.log(`    - 汇总: $${(revenue/1e6).toFixed(1)}M`)
+        })
+      } else {
+        console.log(`  ❌ ${categoryName} 无可用数据`)
+      }
+      
+      result.push({
         name: categoryName,
         revenue: categoryRevenue > 0 ? categoryRevenue : null,
-        children: items.map(item => ({
-          name: item.product_name || item.category_name,
-          revenue: item.revenue || null,
-          profitMargin: item.gross_margin || null,
-          growth: item.yoy_growth || null,
-          metadata: {
-            dataSource: 'company_disclosure' as const,
-            confidenceLevel: 'high' as const,
-            lastUpdated: item.updated_at || undefined,
-            notes: '来自公司财务报告'
-          }
-        })),
+        children: children.length > 0 ? children : undefined,
         metadata: {
           dataSource: 'company_disclosure' as const,
-          confidenceLevel: 'high' as const,
-          notes: '基于公司公开披露数据'
+          confidenceLevel: categoryRevenue > 0 ? 'high' : 'none' as const,
+          notes: `基于公司公开披露数据 - ${children.length > 0 ? '包含' + children.length + '个子产品分解' : '仅分类汇总，无子产品细分'}`
         }
-      }
+      })
+      
+      console.log(`  💰 ${categoryName} 总收入: $${(categoryRevenue/1e6).toFixed(1)}M`)
     })
+
+    console.log('✅ 处理后的产品结构:', result.map(cat => 
+      `${cat.name}: $${cat.revenue || 0} (${cat.children?.length || 0}个子产品)`
+    ))
+    
+    return result
   }
 
   /**
    * 生成估算产品线数据
+   * 修复产品分类重叠和确保层级正确
    */
   private generateEstimatedProductData(totalRevenue: number, year: number, historicalData: any[]): ProductLineData[] {
     // 基于NETGEAR实际业务结构和行业经验的合理估算
     const isPredict = year >= 2025
+    
+    // 安全检查 totalRevenue
+    if (!totalRevenue || totalRevenue <= 0) {
+      console.warn(`⚠️ 总收入异常: ${totalRevenue}, 使用默认值`)
+      totalRevenue = 1200000000 // 12亿美元默认值
+    }
+
+    console.log(`📊 生成${year}年估算数据，总收入: $${(totalRevenue/1e6).toFixed(1)}M`)
 
     return [
       {
         name: '消费级网络产品',
-        revenue: totalRevenue * 0.68,
+        revenue: Math.round(totalRevenue * 0.68),
         children: [
           {
             name: 'WiFi路由器',
-            revenue: totalRevenue * 0.40,
+            revenue: Math.round(totalRevenue * 0.40),
             profitMargin: 28,
             growth: this.calculateEstimatedGrowth('wifi_router', year, historicalData),
             metadata: {
@@ -188,7 +294,7 @@ class ProductLineService {
           },
           {
             name: 'Mesh系统/扩展器',
-            revenue: totalRevenue * 0.18,
+            revenue: Math.round(totalRevenue * 0.18),
             profitMargin: 25,
             growth: this.calculateEstimatedGrowth('mesh_system', year, historicalData),
             metadata: {
@@ -199,7 +305,7 @@ class ProductLineService {
           },
           {
             name: 'NAS存储设备',
-            revenue: totalRevenue * 0.10,
+            revenue: Math.round(totalRevenue * 0.10),
             profitMargin: 32,
             growth: this.calculateEstimatedGrowth('nas', year, historicalData),
             metadata: {
@@ -212,16 +318,16 @@ class ProductLineService {
         metadata: {
           dataSource: isPredict ? 'predicted' : 'estimated',
           confidenceLevel: 'medium',
-          notes: '基于网络设备行业标准分布'
+          notes: '基于网络设备行业标准分布，包含路由器、Mesh、NAS等产品'
         }
       },
       {
         name: '商用/企业级产品',
-        revenue: totalRevenue * 0.22,
+        revenue: Math.round(totalRevenue * 0.22),
         children: [
           {
             name: '企业级路由器',
-            revenue: totalRevenue * 0.10,
+            revenue: Math.round(totalRevenue * 0.10),
             profitMargin: 35,
             growth: this.calculateEstimatedGrowth('enterprise_router', year, historicalData),
             metadata: {
@@ -232,7 +338,7 @@ class ProductLineService {
           },
           {
             name: '交换机',
-            revenue: totalRevenue * 0.08,
+            revenue: Math.round(totalRevenue * 0.08),
             profitMargin: 30,
             growth: this.calculateEstimatedGrowth('switch', year, historicalData),
             metadata: {
@@ -243,7 +349,7 @@ class ProductLineService {
           },
           {
             name: '无线接入点',
-            revenue: totalRevenue * 0.04,
+            revenue: Math.round(totalRevenue * 0.04),
             profitMargin: 38,
             growth: this.calculateEstimatedGrowth('access_point', year, historicalData),
             metadata: {
@@ -256,16 +362,16 @@ class ProductLineService {
         metadata: {
           dataSource: isPredict ? 'predicted' : 'estimated',
           confidenceLevel: 'medium',
-          notes: '基于B2B网络设备市场分析'
+          notes: '基于B2B网络设备市场分析，独立于消费级产品'
         }
       },
       {
         name: '软件与服务',
-        revenue: totalRevenue * 0.10,
+        revenue: Math.round(totalRevenue * 0.10),
         children: [
           {
             name: 'Armor网络安全服务 ⭐',
-            revenue: totalRevenue * 0.05,
+            revenue: Math.round(totalRevenue * 0.05),
             profitMargin: 65,
             growth: this.calculateEstimatedGrowth('armor', year, historicalData),
             metadata: {
@@ -281,7 +387,7 @@ class ProductLineService {
           },
           {
             name: 'Insight网络管理',
-            revenue: totalRevenue * 0.03,
+            revenue: Math.round(totalRevenue * 0.03),
             profitMargin: 70,
             growth: this.calculateEstimatedGrowth('insight', year, historicalData),
             metadata: {
@@ -292,7 +398,7 @@ class ProductLineService {
           },
           {
             name: '其他软件服务',
-            revenue: totalRevenue * 0.02,
+            revenue: Math.round(totalRevenue * 0.02),
             profitMargin: 60,
             growth: this.calculateEstimatedGrowth('other_software', year, historicalData),
             metadata: {
@@ -305,7 +411,7 @@ class ProductLineService {
         metadata: {
           dataSource: isPredict ? 'predicted' : 'estimated',
           confidenceLevel: 'high',
-          notes: '软件服务是NETGEAR战略重点，高毛利增长业务'
+          notes: '软件服务是NETGEAR战略重点，高毛利增长业务，独立于硬件产品'
         }
       }
     ]
@@ -359,6 +465,7 @@ class ProductLineService {
 
   /**
    * 获取空的真实数据结构
+   * 确保产品分类层级正确，避免重叠
    */
   private getEmptyRealDataStructure(): ProductLineData[] {
     return [
@@ -370,7 +477,7 @@ class ProductLineService {
           { name: 'Mesh系统/扩展器', revenue: null, metadata: { dataSource: 'sec_filing', confidenceLevel: 'none', notes: '数据未公开披露' }},
           { name: 'NAS存储设备', revenue: null, metadata: { dataSource: 'sec_filing', confidenceLevel: 'none', notes: '数据未公开披露' }}
         ],
-        metadata: { dataSource: 'sec_filing', confidenceLevel: 'none', notes: '产品线细分数据未在SEC报告中披露' }
+        metadata: { dataSource: 'sec_filing', confidenceLevel: 'none', notes: '消费级产品线细分数据未在SEC报告中披露，包含但不限于路由器、Mesh、NAS等' }
       },
       {
         name: '商用/企业级产品',
@@ -380,7 +487,7 @@ class ProductLineService {
           { name: '交换机', revenue: null, metadata: { dataSource: 'sec_filing', confidenceLevel: 'none', notes: '数据未公开披露' }},
           { name: '无线接入点', revenue: null, metadata: { dataSource: 'sec_filing', confidenceLevel: 'none', notes: '数据未公开披露' }}
         ],
-        metadata: { dataSource: 'sec_filing', confidenceLevel: 'none', notes: '产品线细分数据未在SEC报告中披露' }
+        metadata: { dataSource: 'sec_filing', confidenceLevel: 'none', notes: '企业级产品线细分数据未在SEC报告中披露，独立于消费级产品' }
       },
       {
         name: '软件与服务',
@@ -405,7 +512,7 @@ class ProductLineService {
         metadata: { 
           dataSource: 'sec_filing', 
           confidenceLevel: 'none', 
-          notes: '软件服务营收在财报中通常合并报告，未提供详细分解' 
+          notes: '软件服务营收在财报中通常合并报告，未提供详细分解，独立于硬件产品业务' 
         }
       }
     ]
