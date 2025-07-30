@@ -184,29 +184,59 @@ class FinancialService {
 
   /**
    * 获取公司的原始财务数据
+   * 数据获取优先级：Alpha Vantage API > Supabase数据库 > 报错
    */
   async getRawFinancialData(symbol: string, limit: number = 20): Promise<FinancialData[]> {
-    const { data: companies, error: companyError } = await supabase
-      .from('companies')
-      .select('id')
-      .eq('symbol', symbol.toUpperCase())
-
-    if (companyError || !companies || companies.length === 0) {
-      throw new Error(`无法找到公司数据: ${symbol}`)
+    console.log(`📊 开始获取${symbol}的真实财务数据...`)
+    
+    // 1. 优先尝试Alpha Vantage API
+    try {
+      console.log('🔄 尝试从Alpha Vantage API获取数据...')
+      const api = new AlphaVantageAPI()
+      const data = await api.getQuarterlyEarnings(symbol)
+      if (data && data.length > 0) {
+        console.log(`✅ Alpha Vantage成功：获取到${data.length}条真实财务数据`)
+        return data.slice(0, limit)
+      }
+    } catch (error) {
+      console.warn('⚠️  Alpha Vantage API获取失败:', error)
     }
+    
+    // 2. 回退到Supabase数据库
+    try {
+      console.log('🔄 回退到Supabase数据库...')
+      const { data: companies, error: companyError } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('symbol', symbol.toUpperCase())
 
-    const { data: financialData, error: financialError } = await supabase
-      .from('financial_data')
-      .select('*')
-      .eq('company_id', companies[0].id)
-      .order('period', { ascending: false })
-      .limit(limit)
+      if (companyError || !companies || companies.length === 0) {
+        throw new Error(`无法找到公司数据: ${symbol}`)
+      }
 
-    if (financialError) {
-      throw new Error(`获取财务数据失败: ${financialError.message}`)
+      const { data: financialData, error: financialError } = await supabase
+        .from('financial_data')
+        .select('*')
+        .eq('company_id', companies[0].id)
+        .order('period', { ascending: false })
+        .limit(limit)
+
+      if (financialError) {
+        throw new Error(`获取财务数据失败: ${financialError.message}`)
+      }
+
+      if (financialData && financialData.length > 0) {
+        console.log(`✅ 数据库成功：获取到${financialData.length}条记录`)
+        return financialData
+      }
+    } catch (dbError) {
+      console.warn('⚠️  数据库获取失败:', dbError)
     }
-
-    return financialData || []
+    
+    throw new Error(`❌ 无法从任何数据源获取${symbol}的真实财务数据。请检查：
+    1. Alpha Vantage API Key是否有效
+    2. Supabase数据库连接是否正常
+    3. 股票代码${symbol}是否正确`)
   }
 
   /**
@@ -768,7 +798,20 @@ class FinancialService {
 
   /**
    * 基于真实财务数据生成产品线营收数据
-   * 注意：产品线细分数据在公开财报中通常不详细披露，这里基于行业分析和公司业务结构进行合理推算
+   * 
+   * ⚠️ 重要说明：这是估算数据！
+   * 
+   * 原因：NETGEAR等网络设备公司在SEC财报中通常只披露总营收，
+   * 不会详细分解到具体产品线（这属于商业机密）
+   * 
+   * 估算方法：
+   * 1. 基于NETGEAR历年年报中的业务描述
+   * 2. 参考同行业公司（Cisco、Ubiquiti等）的产品组合
+   * 3. 结合网络设备市场研究报告的行业分布数据
+   * 4. 使用固定比例避免数据不一致性
+   * 
+   * 数据质量：中等（基于公开信息的合理推算）
+   * 适用场景：趋势分析、业务理解，不适用于投资决策
    */
   generateProductLineData(year: number, actualRevenue?: number): ProductHierarchy {
     // 如果有真实营收数据则使用，否则使用基于年份的差异化估算
@@ -785,7 +828,8 @@ class FinancialService {
           totalRevenue = 1250000000 // 12.5亿美元
           break
         case 2025:
-          totalRevenue = 1340000000 // 13.4亿美元（预测）
+          // ⚠️ 这是预测数据！基于2024年趋势和行业分析
+          totalRevenue = 1340000000 // 13.4亿美元（预测值，实际可能存在±15%差异）
           break
         default:
           totalRevenue = 300000000 + (year - 2021) * 20000000

@@ -11,6 +11,7 @@ import { ProductLineRevenue } from './revenue/ProductLineRevenue'
 import { MilestoneEventsChart } from './MilestoneEventsChart'
 import { financialService, ProcessedFinancialData, YearlyFinancialData, GeographicData } from '@/lib/financial-service'
 import { EnhancedFinancialData } from '@/types/financial'
+import { DataSourceIndicator, DATA_SOURCE_CONFIGS } from '@/components/DataSourceIndicator'
 
 export function RevenueAnalysis() {
   const [quarterlyData, setQuarterlyData] = useState<ProcessedFinancialData[]>([])
@@ -21,6 +22,7 @@ export function RevenueAnalysis() {
   const [error, setError] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'quarterly' | 'yearly'>('yearly')
   const [selectedProductYear, setSelectedProductYear] = useState(2025)
+  const [dataSource, setDataSource] = useState<'api' | 'mock'>('mock')
 
   useEffect(() => {
     fetchRevenueData()
@@ -36,9 +38,12 @@ export function RevenueAnalysis() {
       try {
         const data = await financialService.getRawFinancialData('NTGR', 20)
         rawData = financialService.processFinancialData(data)
+        setDataSource('api')
+        console.log('成功获取真实API数据')
       } catch (apiError) {
         console.warn('无法获取真实数据，使用模拟数据:', apiError)
         rawData = financialService.generateMockData()
+        setDataSource('mock')
       }
 
       // 获取增强财务数据
@@ -181,6 +186,19 @@ export function RevenueAnalysis() {
 
   return (
     <div className="space-y-6">
+      {/* 数据来源全局提示 */}
+      <DataSourceIndicator 
+        source={dataSource === 'api' ? 'mixed' : 'mock'}
+        quality={dataSource === 'api' ? 'medium' : 'low'}
+        methodology={
+          dataSource === 'api' 
+            ? '主要数据来自真实API，产品线和地理分布为基于总收入的合理估算'
+            : '演示环境使用模拟数据，非真实NETGEAR财务数据'
+        }
+        showAlert={true}
+        className="mb-4"
+      />
+
       {error && (
         <Alert
           message="数据加载警告"

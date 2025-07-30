@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import type { EChartsOption } from 'echarts'
 import { MetricTooltip } from '@/components/MetricTooltip'
+import { DataSourceIndicator, DATA_SOURCE_CONFIGS } from '@/components/DataSourceIndicator'
 
 // 动态导入 ReactECharts 避免 SSR 问题
 const ReactECharts = dynamic(() => import('echarts-for-react'), {
@@ -409,9 +410,15 @@ export function ProductLineRevenue({
           <Package className="w-5 h-5 text-blue-600" />
           <div>
             <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-            <p className="text-xs text-gray-500 mt-1">
-              *优先使用数据库数据，回退到基于真实财务数据的产品线分布推算
-            </p>
+            <div className="mt-2">
+              <DataSourceIndicator 
+                {...(selectedYear >= 2025 
+                  ? DATA_SOURCE_CONFIGS.FUTURE_PREDICTED 
+                  : DATA_SOURCE_CONFIGS.PRODUCT_LINE_ESTIMATED)}
+                showAlert={false}
+                size="small"
+              />
+            </div>
           </div>
           <MetricTooltip metricId="productRevenue">
             <Info className="w-4 h-4 text-gray-400 hover:text-gray-600" />
