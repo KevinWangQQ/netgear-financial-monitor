@@ -156,11 +156,7 @@ export function RevenueAnalysis() {
     }))
   }
 
-  // 准备产品线数据
-  const prepareProductLineData = () => {
-    const productData = financialService.generateProductLineData(selectedProductYear)
-    return productData.level1 || []
-  }
+  // 产品线数据现在通过ProductLineRevenue组件内部管理
 
   // 产品线营收占比数据（模拟，保留作为备用）
   const productRevenueData = [
@@ -328,7 +324,7 @@ export function RevenueAnalysis() {
       <Row gutter={[16, 16]}>
         <Col xs={24} lg={16}>
           <ProductLineRevenue
-            data={prepareProductLineData()}
+            symbol="NTGR"
             title="产品线营收分析"
             height={450}
             years={[2023, 2024, 2025]}

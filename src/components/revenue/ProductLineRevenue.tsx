@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { motion } from 'framer-motion'
 import { 
@@ -18,6 +18,7 @@ import {
 import type { EChartsOption } from 'echarts'
 import { MetricTooltip } from '@/components/MetricTooltip'
 import { DataSourceIndicator, DATA_SOURCE_CONFIGS } from '@/components/DataSourceIndicator'
+import { productLineService, type ProductLineViewMode, type ProductLineAnalysis } from '@/lib/product-line-service'
 
 // 动态导入 ReactECharts 避免 SSR 问题
 const ReactECharts = dynamic(() => import('echarts-for-react'), {
@@ -34,7 +35,7 @@ interface ProductData {
 }
 
 interface ProductLineRevenueProps {
-  data: ProductData[]
+  symbol?: string  // 新增：公司股票代码
   title: string
   height?: number
   showControls?: boolean
@@ -48,7 +49,7 @@ interface ProductLineRevenueProps {
 type ViewMode = 'pie' | 'bar' | 'sunburst' | 'treemap'
 
 export function ProductLineRevenue({
-  data,
+  symbol = 'NTGR',
   title,
   height = 400,
   showControls = true,
@@ -59,8 +60,12 @@ export function ProductLineRevenue({
   onExport
 }: ProductLineRevenueProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('sunburst')
-  const [showDetails, setShowDetails] = useState(true) // 默认展开详细数据
+  const [showDetails, setShowDetails] = useState(true)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [dataViewMode, setDataViewMode] = useState<ProductLineViewMode>('real')
+  const [analysis, setAnalysis] = useState<ProductLineAnalysis | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // 颜色生成函数 - 移到前面避免初始化顺序问题
   const getCategoryColor = (category: string) => {
@@ -78,10 +83,51 @@ export function ProductLineRevenue({
     return colors[hash % colors.length]
   }
 
+  // 加载产品线数据
+  useEffect(() => {
+    loadProductLineData()
+  }, [symbol, selectedYear, dataViewMode])
+
+  const loadProductLineData = async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const analysisData = dataViewMode === 'real' 
+        ? await productLineService.getRealDataView(symbol, selectedYear)
+        : await productLineService.getEstimatedView(symbol, selectedYear)
+
+      setAnalysis(analysisData)
+    } catch (err) {
+      console.error('加载产品线数据失败:', err)
+      setError(err instanceof Error ? err.message : '数据加载失败')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // 计算总收入
   const totalRevenue = useMemo(() => {
-    return data.reduce((sum, item) => sum + item.revenue, 0)
-  }, [data])
+    return analysis?.totalRevenue || 0
+  }, [analysis])
+
+  // 转换数据格式以兼容现有图表组件
+  const data = useMemo(() => {
+    if (!analysis?.products) return []
+    
+    return analysis.products.map(product => ({
+      name: product.name,
+      revenue: product.revenue || 0,
+      profitMargin: product.profitMargin || 0,
+      growth: product.growth || 0,
+      children: product.children?.map(child => ({
+        name: child.name,
+        revenue: child.revenue || 0,
+        profitMargin: child.profitMargin || 0,
+        growth: child.growth || 0
+      })) || []
+    }))
+  }, [analysis])
 
   // 准备图表数据
   const chartData = useMemo(() => {
@@ -410,14 +456,20 @@ export function ProductLineRevenue({
           <Package className="w-5 h-5 text-blue-600" />
           <div>
             <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-            <div className="mt-2">
+            <div className="mt-2 space-y-2">
               <DataSourceIndicator 
-                {...(selectedYear >= 2025 
-                  ? DATA_SOURCE_CONFIGS.FUTURE_PREDICTED 
-                  : DATA_SOURCE_CONFIGS.PRODUCT_LINE_ESTIMATED)}
+                source={dataViewMode === 'real' ? 'api' : (selectedYear >= 2025 ? 'predicted' : 'estimated')}
+                quality={analysis?.confidence === 'high' ? 'high' : analysis?.confidence === 'medium' ? 'medium' : 'low'}
+                methodology={analysis?.methodology}
                 showAlert={false}
                 size="small"
               />
+              {analysis && (
+                <div className="text-xs text-gray-500">
+                  数据完整性: {(analysis.dataCompleteness * 100).toFixed(0)}% | 
+                  更新时间: {analysis.lastUpdated}
+                </div>
+              )}
             </div>
           </div>
           <MetricTooltip metricId="productRevenue">
@@ -443,7 +495,33 @@ export function ProductLineRevenue({
               </div>
             )}
 
-            {/* 视图模式切换 */}
+            {/* 数据视图切换 */}
+            <div className="flex bg-gray-100 rounded-lg p-1 mr-3">
+              <button
+                onClick={() => setDataViewMode('real')}
+                className={`px-3 py-1.5 rounded-md text-xs transition-colors ${
+                  dataViewMode === 'real'
+                    ? 'bg-white text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                title="真实数据视图"
+              >
+                📊 真实数据
+              </button>
+              <button
+                onClick={() => setDataViewMode('estimated')}
+                className={`px-3 py-1.5 rounded-md text-xs transition-colors ${
+                  dataViewMode === 'estimated'
+                    ? 'bg-white text-orange-600 shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                title="估算预测视图"
+              >
+                📈 估算预测
+              </button>
+            </div>
+
+            {/* 图表视图模式切换 */}
             <div className="flex bg-gray-100 rounded-lg p-1">
               {[
                 { mode: 'sunburst' as const, icon: '🌞', label: '旭日图' },
@@ -529,7 +607,28 @@ export function ProductLineRevenue({
 
       {/* 图表区域 */}
       <div className="p-6">
-        {data && data.length > 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center" style={{ height: `${height}px` }}>
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+              <p className="text-gray-600">加载{dataViewMode === 'real' ? '真实' : '估算'}数据中...</p>
+            </div>
+          </div>
+        ) : error ? (
+          <div className="flex items-center justify-center" style={{ height: `${height}px` }}>
+            <div className="text-center text-red-500">
+              <Package className="w-12 h-12 mx-auto mb-4 text-red-300" />
+              <p className="text-lg font-medium">数据加载失败</p>
+              <p className="text-sm mt-2">{error}</p>
+              <button 
+                onClick={loadProductLineData}
+                className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                重试
+              </button>
+            </div>
+          </div>
+        ) : data && data.length > 0 ? (
           <ReactECharts
             option={chartOption}
             style={{ height: `${height}px` }}
@@ -541,8 +640,22 @@ export function ProductLineRevenue({
           <div className="flex items-center justify-center" style={{ height: `${height}px` }}>
             <div className="text-center text-gray-500">
               <Package className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-              <p className="text-lg font-medium">暂无产品线数据</p>
-              <p className="text-sm mt-2">选定年份没有真实的财务数据</p>
+              <p className="text-lg font-medium">
+                {dataViewMode === 'real' ? '暂无真实产品线数据' : '暂无估算数据'}
+              </p>
+              <p className="text-sm mt-2">
+                {dataViewMode === 'real' 
+                  ? 'NETGEAR未在SEC报告中详细披露产品线营收分解' 
+                  : '估算数据生成失败，请检查基础数据'}
+              </p>
+              {dataViewMode === 'real' && (
+                <button 
+                  onClick={() => setDataViewMode('estimated')}
+                  className="mt-4 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+                >
+                  查看估算数据
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -575,6 +688,9 @@ export function ProductLineRevenue({
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">占比</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">增长率</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">利润率</th>
+                    {dataViewMode === 'real' && (
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">数据状态</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -606,8 +722,23 @@ export function ProductLineRevenue({
                           </div>
                         </td>
                         <td className="px-4 py-2 text-sm font-medium text-gray-900">
-                          {(product.profitMargin || 0).toFixed(1)}%
+                          {product.profitMargin !== undefined && product.profitMargin !== null 
+                            ? `${product.profitMargin.toFixed(1)}%` 
+                            : '未披露'}
                         </td>
+                        {dataViewMode === 'real' && (
+                          <td className="px-4 py-2 text-sm">
+                            {product.revenue !== null && product.revenue > 0 ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                已披露
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                未披露
+                              </span>
+                            )}
+                          </td>
+                        )}
                       </tr>
                     )) || []
                   )}
