@@ -25,3 +25,6 @@ scripts/venv/
 
 # Vercel
 .vercel
+
+# Log files
+*.log
