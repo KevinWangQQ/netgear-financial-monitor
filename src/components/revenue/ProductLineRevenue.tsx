@@ -408,7 +408,7 @@ export function ProductLineRevenue({
           <div>
             <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
             <p className="text-xs text-gray-500 mt-1">
-              *产品线数据基于总营收和行业分析推算，非精确细分数据
+              *基于真实财务数据的产品线分布推算（NETGEAR实际业务结构）
             </p>
           </div>
           <MetricTooltip metricId="productRevenue">
@@ -520,26 +520,37 @@ export function ProductLineRevenue({
 
       {/* 图表区域 */}
       <div className="p-6">
-        <ReactECharts
-          option={chartOption}
-          style={{ height: `${height}px` }}
-          opts={{ renderer: 'canvas' }}
-          notMerge={true}
-          lazyUpdate={true}
-        />
+        {data && data.length > 0 ? (
+          <ReactECharts
+            option={chartOption}
+            style={{ height: `${height}px` }}
+            opts={{ renderer: 'canvas' }}
+            notMerge={true}
+            lazyUpdate={true}
+          />
+        ) : (
+          <div className="flex items-center justify-center" style={{ height: `${height}px` }}>
+            <div className="text-center text-gray-500">
+              <Package className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+              <p className="text-lg font-medium">暂无产品线数据</p>
+              <p className="text-sm mt-2">选定年份没有真实的财务数据</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 详细数据表格 */}
-      <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
-        <button
-          onClick={() => setShowDetails(!showDetails)}
-          className="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-gray-900"
-        >
-          <ChevronDown className={`w-4 h-4 transition-transform ${showDetails ? 'rotate-180' : ''}`} />
-          <span>{showDetails ? '隐藏' : '显示'}详细数据</span>
-        </button>
+      {data && data.length > 0 && (
+        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100">
+          <button
+            onClick={() => setShowDetails(!showDetails)}
+            className="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+          >
+            <ChevronDown className={`w-4 h-4 transition-transform ${showDetails ? 'rotate-180' : ''}`} />
+            <span>{showDetails ? '隐藏' : '显示'}详细数据</span>
+          </button>
 
-        {showDetails && (
+          {showDetails && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
@@ -595,8 +606,9 @@ export function ProductLineRevenue({
               </table>
             </div>
           </motion.div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </motion.div>
   )
 }

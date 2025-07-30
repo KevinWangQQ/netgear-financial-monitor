@@ -53,6 +53,7 @@ interface KPIData {
 
 export function FinancialDataModule() {
   const [geographicData, setGeographicData] = useState<GeographicData[]>([])
+  const [rawData, setRawData] = useState<ProcessedFinancialData[]>([]) // 添加真实数据state
   const [enhancedData, setEnhancedData] = useState<EnhancedFinancialData[]>([])
   const [kpiData, setKpiData] = useState<KPIData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -69,42 +70,45 @@ export function FinancialDataModule() {
       setError(null)
 
       // 获取财务数据
-      let rawData: ProcessedFinancialData[]
+      let rawFinancialData: ProcessedFinancialData[]
       try {
         const data = await financialService.getRawFinancialData('NTGR', 20)
-        rawData = financialService.processFinancialData(data)
+        rawFinancialData = financialService.processFinancialData(data)
       } catch (apiError) {
         console.warn('无法获取真实数据，使用模拟数据:', apiError)
-        rawData = financialService.generateMockData()
+        rawFinancialData = financialService.generateMockData()
       }
 
-      // 获取增强财务数据
+      // 保存真实数据
+      setRawData(rawFinancialData)
+
+      // 获取增强财务数据（仅用于图表展示，不用于产品线分析）
       const enhanced = financialService.generateEnhancedMockData()
       setEnhancedData(enhanced)
 
-      if (rawData.length === 0) {
+      if (rawFinancialData.length === 0) {
         throw new Error('无数据可用')
       }
 
       // 按年度分组数据
-      const yearly = financialService.groupByYear(rawData)
+      const yearly = financialService.groupByYear(rawFinancialData)
 
       // 获取地理分布数据（基于最新季度营收）
-      const latestRevenue = rawData[0]?.revenue || 0
+      const latestRevenue = rawFinancialData[0]?.revenue || 0
       const geographic = financialService.getGeographicData(latestRevenue)
       setGeographicData(geographic)
 
       // 计算KPI数据
       const currentYear = yearly[0] // 最新年份
-      const latestQuarter = rawData[0] // 最新季度
-      const previousQuarter = rawData[1] // 上一季度
+      const latestQuarter = rawFinancialData[0] // 最新季度
+      const previousQuarter = rawFinancialData[1] // 上一季度
 
       // 使用新的精确增长率计算方法
-      const revenueGrowth = financialService.calculateGrowthMetrics(rawData)
-      const grossProfitMarginChanges = financialService.calculateMetricChanges(rawData, 'grossProfitMargin')
-      const netProfitMarginChanges = financialService.calculateMetricChanges(rawData, 'netProfitMargin')
-      const roaChanges = financialService.calculateMetricChanges(rawData, 'roa')
-      const roeChanges = financialService.calculateMetricChanges(rawData, 'roe')
+      const revenueGrowth = financialService.calculateGrowthMetrics(rawFinancialData)
+      const grossProfitMarginChanges = financialService.calculateMetricChanges(rawFinancialData, 'grossProfitMargin')
+      const netProfitMarginChanges = financialService.calculateMetricChanges(rawFinancialData, 'netProfitMargin')
+      const roaChanges = financialService.calculateMetricChanges(rawFinancialData, 'roa')
+      const roeChanges = financialService.calculateMetricChanges(rawFinancialData, 'roe')
 
       // 计算年度数据的同比增长
       const previousYear = yearly[1] // 上一年度数据
@@ -244,13 +248,31 @@ export function FinancialDataModule() {
   }
 
   const prepareProductLineData = () => {
+    // 如果没有真实数据，返回空数组
+    if (!rawData || rawData.length === 0) {
+      return []
+    }
+
     // 获取选定年份的真实营收数据
-    const selectedYearRevenue = enhancedData
-      .filter(item => item.year === selectedProductYear)
-      .reduce((sum, item) => sum + item.revenue, 0)
+    const selectedYearData = rawData.filter(item => item.year === selectedProductYear)
+    
+    if (selectedYearData.length === 0) {
+      // 如果选定年份没有数据，显示警告并返回空数组
+      console.warn(`没有找到${selectedProductYear}年的真实财务数据`)
+      return []
+    }
+
+    // 计算该年份的实际总营收（基于现有季度数据）
+    const actualYearRevenue = selectedYearData.reduce((sum, item) => sum + item.revenue, 0)
+    
+    // 显示数据来源信息
+    const availableQuarters = selectedYearData.map(item => `Q${item.quarter}`).join(', ')
+    console.log(`${selectedProductYear}年产品线分析基于真实财务数据：`)
+    console.log(`- 可用季度：${availableQuarters}`)
+    console.log(`- 实际营收总计：$${(actualYearRevenue / 1e6).toFixed(1)}M`)
     
     // 基于真实营收数据生成产品线分布
-    const productData = financialService.generateProductLineData(selectedProductYear, selectedYearRevenue)
+    const productData = financialService.generateProductLineData(selectedProductYear, actualYearRevenue)
     
     return productData.level1.map(item => ({
       name: item.name,
