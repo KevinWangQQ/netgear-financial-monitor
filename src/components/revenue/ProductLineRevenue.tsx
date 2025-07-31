@@ -18,7 +18,7 @@ import {
 import type { EChartsOption } from 'echarts'
 import { MetricTooltip } from '@/components/MetricTooltip'
 import { DataSourceIndicator, DATA_SOURCE_CONFIGS } from '@/components/DataSourceIndicator'
-import { productLineService, type ProductLineViewMode, type ProductLineAnalysis } from '@/lib/product-line-service'
+import { realProductLineService, type ProductLineViewMode, type ProductLineAnalysis } from '@/lib/real-product-line-service'
 
 // 动态导入 ReactECharts 避免 SSR 问题
 const ReactECharts = dynamic(() => import('echarts-for-react'), {
@@ -101,8 +101,8 @@ export function ProductLineRevenue({
       setError(null)
 
       const analysisData = dataViewMode === 'real' 
-        ? await productLineService.getRealDataView(symbol, selectedYear)
-        : await productLineService.getEstimatedView(symbol, selectedYear)
+        ? await realProductLineService.getRealDataView(symbol, selectedYear)
+        : await realProductLineService.getEstimatedView(symbol, selectedYear)
 
       setAnalysis(analysisData)
     } catch (err) {
@@ -473,7 +473,7 @@ export function ProductLineRevenue({
             <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
             <div className="mt-2 space-y-2">
               <DataSourceIndicator 
-                source={dataViewMode === 'real' ? 'api' : (selectedYear >= 2025 ? 'predicted' : 'estimated')}
+                source={dataViewMode === 'real' ? 'pdf_official' : (selectedYear >= 2025 ? 'predicted' : 'estimated')}
                 quality={analysis?.confidence === 'high' ? 'high' : analysis?.confidence === 'medium' ? 'medium' : 'low'}
                 methodology={analysis?.methodology}
                 showAlert={false}
