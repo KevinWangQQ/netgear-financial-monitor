@@ -70,6 +70,13 @@ export function ProductLineRevenue({
   // 颜色生成函数 - 移到前面避免初始化顺序问题
   const getCategoryColor = (category: string) => {
     const colors = {
+      // 2023年及之前的分段
+      'Connected Home': '#3b82f6',
+      // 2024年及之后的新分段
+      'NETGEAR for Business': '#10b981', 
+      'Home Networking': '#06b6d4',
+      'Mobile': '#f59e0b',
+      // 通用颜色
       '消费级产品': '#3b82f6',
       '企业级产品': '#10b981', 
       '软件服务': '#f59e0b'
@@ -663,9 +670,13 @@ export function ProductLineRevenue({
                       <li>• 详细产品线分解通常不在公开财报中</li>
                       <li>• 只显示已验证的官方数据，确保准确性</li>
                     </ul>
-                    <div className="mt-4 p-3 bg-blue-50 rounded-lg text-left">
-                      <p className="text-xs text-blue-700 font-medium">💡 可用数据年份：2023, 2024</p>
-                      <p className="text-xs text-blue-600 mt-1">建议切换到这些年份查看真实的业务分段数据</p>
+                    <div className="mt-4 p-3 bg-green-50 rounded-lg text-left">
+                      <p className="text-xs text-green-700 font-medium">✅ 官方财报数据已导入</p>
+                      <p className="text-xs text-green-600 mt-1">基于NETGEAR官方PDF财报的真实业务分段数据</p>
+                      <p className="text-xs text-green-600 mt-1">• 2025年Q1-Q2: 三分段模式 (NFB + 家庭网络 + 移动)</p>
+                      <p className="text-xs text-green-600 mt-1">• 2024年全年: 完整季度数据，业务转型期</p>
+                      <p className="text-xs text-green-600 mt-1">• 2023年全年: 传统两分段模式 (Connected Home + NFB)</p>
+                      <p className="text-xs text-green-600 mt-1">• 数据源: SEC文件 + 官方财报PDF + Alpha Vantage</p>
                     </div>
                   </>
                 ) : (

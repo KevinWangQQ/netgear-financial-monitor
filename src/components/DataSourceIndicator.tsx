@@ -8,7 +8,7 @@ import {
   ClockCircleOutlined 
 } from '@ant-design/icons'
 
-export type DataSource = 'api' | 'mock' | 'estimated' | 'predicted' | 'mixed'
+export type DataSource = 'api' | 'mock' | 'estimated' | 'predicted' | 'mixed' | 'pdf_official'
 export type DataQuality = 'high' | 'medium' | 'low'
 
 interface DataSourceIndicatorProps {
@@ -67,6 +67,13 @@ export function DataSourceIndicator({
           icon: <InfoCircleOutlined />,
           text: '混合数据',
           description: '包含真实数据和估算数据的组合'
+        }
+      case 'pdf_official':
+        return {
+          color: 'green',
+          icon: <CheckCircleOutlined />,
+          text: '官方PDF',
+          description: '从NETGEAR官方财报PDF提取的权威数据'
         }
       default:
         return {
