@@ -90,3 +90,63 @@
 2025-07-30 10:06:59,212 - INFO - ============================================================
 2025-07-30 10:06:59,213 - INFO - 🎉 增强版数据更新成功完成!
 2025-07-30 10:06:59,213 - INFO - 数据库已更新，前端应用将显示最新数据
+2025-07-30 14:33:13,277 - INFO - 增强版财务数据爬虫初始化完成
+2025-07-30 14:33:13,277 - INFO - 开始执行完整的财务数据更新...
+2025-07-30 14:33:13,277 - INFO - 处理公司: NTGR
+2025-07-30 14:33:14,004 - WARNING - 无资产负债表数据 NTGR
+2025-07-30 14:33:14,169 - WARNING - 无现金流数据 NTGR
+2025-07-30 14:33:14,377 - INFO - HTTP Request: GET https://tyyomhwzfibppknecape.supabase.co/rest/v1/companies?select=id&symbol=eq.NTGR "HTTP/1.1 200 OK"
+2025-07-30 14:33:14,580 - INFO - HTTP Request: POST https://tyyomhwzfibppknecape.supabase.co/rest/v1/financial_data?on_conflict=company_id%2Cperiod "HTTP/1.1 200 OK"
+2025-07-30 14:33:14,581 - INFO - 更新 NTGR Q1-2025 财务数据
+2025-07-30 14:33:14,707 - INFO - HTTP Request: POST https://tyyomhwzfibppknecape.supabase.co/rest/v1/financial_data?on_conflict=company_id%2Cperiod "HTTP/1.1 200 OK"
+2025-07-30 14:33:14,708 - INFO - 更新 NTGR Q4-2024 财务数据
+2025-07-30 14:33:14,803 - INFO - HTTP Request: POST https://tyyomhwzfibppknecape.supabase.co/rest/v1/financial_data?on_conflict=company_id%2Cperiod "HTTP/1.1 200 OK"
+2025-07-30 14:33:14,804 - INFO - 更新 NTGR Q3-2024 财务数据
+2025-07-30 14:33:14,918 - INFO - HTTP Request: POST https://tyyomhwzfibppknecape.supabase.co/rest/v1/financial_data?on_conflict=company_id%2Cperiod "HTTP/1.1 200 OK"
+2025-07-30 14:33:14,919 - INFO - 更新 NTGR Q2-2024 财务数据
+2025-07-30 14:33:15,035 - INFO - HTTP Request: POST https://tyyomhwzfibppknecape.supabase.co/rest/v1/financial_data?on_conflict=company_id%2Cperiod "HTTP/1.1 200 OK"
+2025-07-30 14:33:15,035 - INFO - 更新 NTGR Q1-2024 财务数据
+2025-07-30 14:33:15,163 - INFO - HTTP Request: POST https://tyyomhwzfibppknecape.supabase.co/rest/v1/financial_data?on_conflict=company_id%2Cperiod "HTTP/1.1 200 OK"
+2025-07-30 14:33:15,164 - INFO - 更新 NTGR Q4-2023 财务数据
+2025-07-30 14:33:15,269 - INFO - HTTP Request: POST https://tyyomhwzfibppknecape.supabase.co/rest/v1/financial_data?on_conflict=company_id%2Cperiod "HTTP/1.1 200 OK"
+2025-07-30 14:33:15,275 - INFO - 更新 NTGR Q3-2023 财务数据
+2025-07-30 14:33:15,426 - INFO - HTTP Request: POST https://tyyomhwzfibppknecape.supabase.co/rest/v1/financial_data?on_conflict=company_id%2Cperiod "HTTP/1.1 200 OK"
+2025-07-30 14:33:15,427 - INFO - 更新 NTGR Q2-2023 财务数据
+2025-07-30 14:33:15,542 - INFO - HTTP Request: GET https://tyyomhwzfibppknecape.supabase.co/rest/v1/companies?select=id&symbol=eq.NTGR "HTTP/1.1 200 OK"
+2025-07-30 14:33:15,635 - INFO - HTTP Request: GET https://tyyomhwzfibppknecape.supabase.co/rest/v1/financial_data?select=%2A&company_id=eq.008cee4e-b64d-48d7-96a9-8ff2689ac1c0&order=fiscal_year.desc&order=fiscal_quarter.desc&limit=1 "HTTP/1.1 200 OK"
+2025-07-30 14:33:15,636 - INFO - 基于 NTGR Q1-2025 营收 $162.1M 更新增强数据
+2025-07-30 14:33:15,777 - INFO - HTTP Request: DELETE https://tyyomhwzfibppknecape.supabase.co/rest/v1/product_line_revenue?company_id=eq.008cee4e-b64d-48d7-96a9-8ff2689ac1c0&period=eq.Q1-2025 "HTTP/1.1 200 OK"
+2025-07-30 14:33:15,886 - INFO - HTTP Request: POST https://tyyomhwzfibppknecape.supabase.co/rest/v1/product_line_revenue "HTTP/1.1 201 Created"
+2025-07-30 14:33:15,888 - INFO - 更新产品线数据: 12 条记录
+2025-07-30 14:33:15,997 - INFO - HTTP Request: DELETE https://tyyomhwzfibppknecape.supabase.co/rest/v1/geographic_revenue?company_id=eq.008cee4e-b64d-48d7-96a9-8ff2689ac1c0&period=eq.Q1-2025 "HTTP/1.1 200 OK"
+2025-07-30 14:33:16,068 - INFO - HTTP Request: POST https://tyyomhwzfibppknecape.supabase.co/rest/v1/geographic_revenue "HTTP/1.1 201 Created"
+2025-07-30 14:33:16,069 - INFO - 更新地理分布数据: 3 条记录
+2025-07-30 14:33:18,074 - INFO - 处理公司: CSCO
+2025-07-30 14:33:18,380 - WARNING - 无季度数据 CSCO
+2025-07-30 14:33:18,382 - INFO - 处理公司: HPE
+2025-07-30 14:33:18,551 - WARNING - 无季度数据 HPE
+2025-07-30 14:33:18,553 - INFO - 处理公司: JNPR
+2025-07-30 14:33:18,728 - WARNING - 无季度数据 JNPR
+2025-07-30 14:33:18,821 - INFO - HTTP Request: POST https://tyyomhwzfibppknecape.supabase.co/rest/v1/data_update_log "HTTP/1.1 201 Created"
+2025-07-30 14:33:18,822 - INFO - ============================================================
+2025-07-30 14:33:18,822 - INFO - 数据更新完成！总计更新 8 条记录
+2025-07-30 14:33:18,822 - INFO - ✅ 成功: NTGR (8条)
+2025-07-30 14:33:18,822 - WARNING - ❌ 失败: CSCO (无财务数据), HPE (无财务数据), JNPR (无财务数据)
+2025-07-30 14:33:18,822 - INFO - ============================================================
+2025-07-30 14:33:18,822 - INFO - 🎉 数据更新成功完成!
+2025-07-30 14:40:45,182 - INFO - 增强版财务数据爬虫初始化完成
+2025-07-30 14:40:45,182 - INFO - 开始执行完整的财务数据更新...
+2025-07-30 14:40:45,182 - INFO - 处理公司: NTGR
+2025-07-30 14:40:45,523 - WARNING - 无季度数据 NTGR
+2025-07-30 14:40:45,525 - INFO - 处理公司: CSCO
+2025-07-30 14:40:45,723 - WARNING - 无季度数据 CSCO
+2025-07-30 14:40:45,726 - INFO - 处理公司: HPE
+2025-07-30 14:40:46,123 - WARNING - 无季度数据 HPE
+2025-07-30 14:40:46,126 - INFO - 处理公司: JNPR
+2025-07-30 14:40:46,308 - WARNING - 无季度数据 JNPR
+2025-07-30 14:40:46,493 - INFO - HTTP Request: POST https://tyyomhwzfibppknecape.supabase.co/rest/v1/data_update_log "HTTP/1.1 201 Created"
+2025-07-30 14:40:46,497 - INFO - ============================================================
+2025-07-30 14:40:46,497 - INFO - 数据更新完成！总计更新 0 条记录
+2025-07-30 14:40:46,497 - WARNING - ❌ 失败: NTGR (无财务数据), CSCO (无财务数据), HPE (无财务数据), JNPR (无财务数据)
+2025-07-30 14:40:46,497 - INFO - ============================================================
+2025-07-30 14:40:46,497 - ERROR - ❌ 数据更新失败
